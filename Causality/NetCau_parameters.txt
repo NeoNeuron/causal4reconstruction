@@ -1,0 +1,46 @@
+NE: 			126
+NI:			0
+T_Max(ms)&DT:		1e5 2e4 
+auto_T_max:		1
+bin(ms):		1
+order(x,y);		1 10
+sample_delay: 		0
+
+
+File_name:		Scan1_th=2.00
+matrix_name:		connect_matrix-p=0.000.dat
+path_input:		D:/experiment_data/ECoG/
+path_output:		D:/experiment_data/ECoG/
+		
+File_name:		HHp=0.25s=0.025f=0.10u=0.10
+matrix_name:		connect_matrix-p=0.220.dat
+path_input:		D:/code/TGIC/data/
+path_output:		D:/code/TGIC/data_tgic/
+
+D:/code/Net_Model/data/
+///////////////////
+win64
+D:/code/Net_Model/data/
+D:/code/Net_Causality/data/
+
+path_input:		D:/code/TGIC/data/
+path_output:		D:/code/TGIC/data_tgic/
+
+
+path_input:		D:/experiment_data/Allen/
+path_output:		D:/experiment_data/Allen/
+path_input:		D:/experiment_data/songting/
+path_output:		D:/experiment_data/songting/
+path_input:		D:/experiment_data/pinky40/spike_data/
+path_output:		D:/experiment_data/pinky40/spike_data/
+
+G-p=0.250s=0.010f=0.050u=1.500	 
+
+./t IF 0 0.01 0.01 6 0.05 0 100
+
+HHcon 0.25 0.01 0.1 0.1 0.1   
+
+HHconp=0.25s=0.010f=0.10u=0.10
+
+
+HHp=0.00s=0.030f=0.100u=0.100 
