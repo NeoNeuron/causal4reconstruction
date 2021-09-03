@@ -9,11 +9,11 @@ void Read_parameters()
 	//	fp = fopen("/home/zqtian/TE_base_IF/parameters_input_TE.txt", "r");
 
 
-	if ((fp = fopen("/home/shangj/TGIC/NetCau_parameters.txt", "r")) == NULL)
-		fp = fopen("D:/code/TGIC/NetCau_parameters.txt", "r");
+	if ((fp = fopen("./NetCau_parameters.txt", "r")) == NULL)
+		fp = fopen("./NetCau_parameters.txt", "r");
 
 	if (fp == NULL)
-		fp = fopen("/home/zqtian/TGIC/NetCau_parameters.txt", "r");
+		fp = fopen("./NetCau_parameters.txt", "r");
 
 
 	if (fp == NULL)

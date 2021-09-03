@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-//		Linear generater of the uniform distribution in U£¨0, 1£©
+//		Linear generater of the uniform distribution in U(0, 1)
 //-----------------------------------------------------------------------------
 const unsigned int Random_M = (unsigned int)(pow(2.0, 31));
 

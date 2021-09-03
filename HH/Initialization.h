@@ -219,6 +219,14 @@ void Create_connect_matrix(long& seed)
 		}
 
 	}
+
+	// Print the connectivity matrix;
+	for (int i=0; i<N; i++) {
+		for (int j=0; j<N; j++) {
+			printf("%0.3f\t", Connect_Matrix[i][j]);
+		}
+		printf("\n");
+	}
 }
 
 void Find_unique_resolution_equalspace(double *a, int n, int k,int &Resolution)  
