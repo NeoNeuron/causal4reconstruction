@@ -1,20 +1,8 @@
-void Read_parameters()
+void Read_parameters(po::variables_map& vm)
 {
 	FILE *fp;
 
-	//if ((fp = fopen("/home/shangj/TE_base_IF/parameters_input_TE.txt", "r")) == NULL)
-	//	fp = fopen("D:/code/TE_base_IF/parameters_input_TE.txt", "r");
-
-	//if (fp == NULL)
-	//	fp = fopen("/home/zqtian/TE_base_IF/parameters_input_TE.txt", "r");
-
-
-	if ((fp = fopen("./NetCau_parameters.txt", "r")) == NULL)
-		fp = fopen("./NetCau_parameters.txt", "r");
-
-	if (fp == NULL)
-		fp = fopen("./NetCau_parameters.txt", "r");
-
+	fp = fopen(vm["config"].as<string>().c_str(), "r");
 
 	if (fp == NULL)
 	{
@@ -25,25 +13,31 @@ void Read_parameters()
 
 	char ch[100];
 
-	fscanf(fp, "%s%d%s%d", ch, &NE, ch, &NI);
+	NE = vm["NE"].as<int>();
+	NI = vm["NI"].as<int>();
 	N = NE + NI;
-	fscanf(fp, "%s%lf%lf", ch, &T_Max, &DT);
+	T_Max = vm["T_Max"].as<double>();
+	DT = vm["DT"].as<double>();
 	if (DT <= 1e5)
 		DT = 1e5;
-	fscanf(fp, "%s%d", ch, &auto_T_max);
+	// fscanf(fp, "%s%d", ch, &auto_T_max);
+	auto_T_max = vm["auto_T_max"].as<double>();
 
 
-	fscanf(fp, "%s%lf", ch, &bin);
-	fscanf(fp, "%s%d%d", ch, &order[0], &order[1]);  //  order 0--x, 1--y
+	bin = vm["bin"].as<double>();
+    vector<int> order_vec = str2vec(vm["order"].as<string>());
+	for (int i = 0; i < 2; i++)
+		order[i] = order_vec[i];
 
 	fscanf(fp, "%s%lf", ch, &delay);
+	delay = vm["sample_delay"].as<double>();
 	//int aa;
 	//fscanf(fp, "%s%d", ch, &aa);
 
-	fscanf(fp, "%s%s", ch, input_filename);
-	fscanf(fp, "%s%s", ch, matrix_name);
-	fscanf(fp, "%s%s", ch, path_input);
-	fscanf(fp, "%s%s", ch, path_output);
+	strcpy(input_filename,  vm["filename"].as<string>().c_str());
+	strcpy(matrix_name,  vm["matrix_name"].as<string>().c_str());
+	strcpy(path_input,    vm["path_input"].as<string>().c_str());
+	strcpy(path_output,  vm["path_output"].as<string>().c_str());
 
 	if (N == NE)
 	{

@@ -10,6 +10,8 @@
 
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Core>
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
 
 using namespace Eigen;
 using namespace std;
@@ -40,5 +42,18 @@ double **TE_2, **DMI_2, **NCC_2;			// 2TE,2DMI,NCC^2 [N][N], y-->x
 FILE *FP;           /// output pairwise TE. (TE,y,x,px,py,p0,dp1,dp2,...,dpk,delta,te_order5, GC,sumDMI,sumNCC^2,appxo for 2sumDMI)
 					////y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. delta = p(x=1|y=1)-p(x=1|y=0) 			
 
+bool verbose;
+
 /////////
 #define MAX(a,b)  ((a)>(b)?(a):(b))
+
+std::vector<int> str2vec(std::string str) {
+    std::vector<int> out;
+    std::stringstream ss(str);
+
+    int tmpVal;
+    while (ss >> tmpVal)
+        out.push_back(tmpVal);
+
+    return out;
+}

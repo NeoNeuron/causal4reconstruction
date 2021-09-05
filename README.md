@@ -3,5 +3,5 @@
 ## Compiling command
 
 ```bash
-g++ -O2 main.cpp -I ../include
+g++ -O2 main.cpp -o ./cal_causality.out -I ../include -lboost_program_options
 ```

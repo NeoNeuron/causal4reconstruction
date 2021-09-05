@@ -16,7 +16,8 @@ void Find_T_Max(FILE *fp)
 	{
 		fread(s, sizeof(double), 2, fp);
 	}
-	printf("T_max=%0.3e\n", s[0]);
+	if (verbose)
+		printf("T_max=%0.3e\n", s[0]);
 	T_Max = s[0];
 	rewind(fp);
 }
@@ -47,7 +48,7 @@ void read_data(FILE *fp, int data_length, double t0, double t1)
 	//	rewind(fp);
 }
 
-//void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101 ·Ö¶Î²ÉÑù
+//void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101 ï¿½Ö¶Î²ï¿½ï¿½ï¿½
 //{
 //	int data_num;
 //
@@ -74,7 +75,7 @@ void read_data(FILE *fp, int data_length, double t0, double t1)
 //	}
 //}
 
-void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101  Á¬Ðø²ÉÑù
+void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 {
 	int data_num;
 
@@ -177,19 +178,22 @@ void Run_model()
 	///////////////////// sum DMI(x_n+1+tau,y_n), CC(x_n+1+tau,y_n)
 
 	FP = fopen(output_filename, "wb");
-	printf("save to file :%s\n\n", output_filename);
+	if (verbose)
+		printf("save to file :%s\n\n", output_filename);
 	compute_causality();
 
 	char cch[4][100] = { {"GC"},{"sum NCC"},{"2 sum DMI"},{"2TE"} };
 
 	if (N <= 10) //revise
 	{
-		Print(TE_2, cch[3]);
+		if (verbose) {
+			Print(TE_2, cch[3]);
 
-		//Print(TE_2, cch[3]);
-		//Print(GC, cch[0]);
-		//Print(DMI_2, cch[2]);
-		//Print(NCC_2, cch[1]);
+			//Print(TE_2, cch[3]);
+			//Print(GC, cch[0]);
+			//Print(DMI_2, cch[2]);
+			//Print(NCC_2, cch[1]);
+		}
 	}
 
 	////////////////////  reconstruction & kmean	
@@ -208,15 +212,17 @@ void Run_model()
 
 
 	t1 = clock();
-	printf("T_max=%0.2e L=%0.2e\n", T_Max, L);
+	if (verbose) {
+		printf("T_max=%0.2e L=%0.2e\n", T_Max, L);
 
-	for (int i = 0; i < 4; i++)
-		printf("th=%0.3e ", threshold[i]);
-	printf("\n");
+		for (int i = 0; i < 4; i++)
+			printf("th=%0.3e ", threshold[i]);
+		printf("\n");
 
-	for (int i = 0; i < 4; i++)
-		printf("accu=%0.2f ", accuracy[i]);
-	printf("\n");
+		for (int i = 0; i < 4; i++)
+			printf("accu=%0.2f ", accuracy[i]);
+		printf("\n");
 
-	printf("Total time=%0.3fs\n\n", double(t1 - t0) / CLOCKS_PER_SEC);
+		printf("Total time=%0.3fs\n\n", double(t1 - t0) / CLOCKS_PER_SEC);
+	}
 }
