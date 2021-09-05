@@ -132,7 +132,7 @@ void Create_connect_matrix(long& seed)
 		Connect_Matrix[1][2] = 1;
 
 		CS[0][1] = S[0];			
-		CS[1][2] = S[0];
+		CS[1][2] = S[2];
 	}
 	else if (N == 4 || N == 5)
 	{
@@ -223,7 +223,7 @@ void Create_connect_matrix(long& seed)
 	// Print the connectivity matrix;
 	for (int i=0; i<N; i++) {
 		for (int j=0; j<N; j++) {
-			printf("%0.3f\t", Connect_Matrix[i][j]);
+			printf("%.0f\t", Connect_Matrix[i][j]);
 		}
 		printf("\n");
 	}

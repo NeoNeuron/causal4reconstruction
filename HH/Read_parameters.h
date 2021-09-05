@@ -123,6 +123,9 @@ void out_put_filename()
 	{
 		strcat(str, "s="), sprintf(c, "%0.3f", S[2]), strcat(str, c);
 	}
+	if (N==3) {
+		strcat(str, "s="), sprintf(c, "%0.3f", S[2]), strcat(str, c);
+	}
 	strcat(str, "f="), sprintf(c, "%0.3f", f[0]), strcat(str, c);
 	strcat(str, "u="), sprintf(c, "%0.3f", Nu), strcat(str, c);
 	
