@@ -11,7 +11,6 @@
 #include "New_delete.h"
 #include "Kmean.h" 
 #include "Compute_Causality.h"
-#include "test_function.h"
 #include "Run_model.h"
 #include <fstream>
 

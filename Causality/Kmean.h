@@ -46,12 +46,12 @@ void read_connect_matrix(double **connect_matrix, double **connect_matrix_streng
 	}
 	rewind(fp);
 
-	if (num >= N*N + 1)
+	if (num >= N*N + 1) // dense matrix
 	{
 		for (int i = 0; i < N; i++)		
 			fread(connect_matrix[i], sizeof(double), int(N), fp);	
 	}
-	else
+	else // sparse matrix
 	{
 
 		A = new double[N + 1];
@@ -129,7 +129,7 @@ void pre_compute(int &n, double *One_D_Ma, double **Ma, int id)
 }
 
 void K_mean_2(int n, double *te, double &x)    
-///  n ÊÇte³¤¶È, te ÒÑ¾­¹ý´ÓÐ¡µ½´óÅÅÁÐ£¬Ã¿Ò»¸öÊý¾Ý¶¼ÊÇÓÐÓÃµÄ¡£x ´ú±í·ÖÀëÎ»ÖÃ
+///  n ï¿½ï¿½teï¿½ï¿½ï¿½ï¿½, te ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½Ã¿Ò»ï¿½ï¿½ï¿½ï¿½ï¿½Ý¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÃµÄ¡ï¿½x ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 {
 
 	if (n == 0)
@@ -186,7 +186,7 @@ void K_mean_2(int n, double *te, double &x)
 }
 
 //void K_mean_2a(int n, double *te, double &x)
-/////  n ÊÇte³¤¶È, te ÒÑ¾­¹ý´ÓÐ¡µ½´óÅÅÁÐ£¬Ã¿Ò»¸öÊý¾Ý¶¼ÊÇÓÐÓÃµÄ¡£x ´ú±í·ÖÀëÎ»ÖÃ
+/////  n ï¿½ï¿½teï¿½ï¿½ï¿½ï¿½, te ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½Ã¿Ò»ï¿½ï¿½ï¿½ï¿½ï¿½Ý¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÃµÄ¡ï¿½x ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 //{
 //	sort(te, te + n);
 //	double sum = 0, sum0 = 0;
