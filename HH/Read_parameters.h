@@ -19,7 +19,10 @@ void Read_parameters(long &seed, long &seed1)
 	fscanf(fp, "%s%ld%ld", ch, &seed, &seed1);
 
 	fscanf(fp, "%s%lf%s%lf", ch, &T_Max, ch, &T_step);
-	fscanf(fp, "%s%lf%lf%lf%lf", ch, &S[0], &S[1], &S[2], &S[3]);
+	fscanf(fp, "%s", ch);
+	for (int i=0; i<4; i++)
+		fscanf(fp, "%lf", &S[i]);
+	// printf("%s : %f %f %f %f\n", ch, S[0], S[1], S[2], S[3]);
 	fscanf(fp, "%s%d", ch, &I_CONST);
 
 	fscanf(fp, "%s%lf%s%lf", ch, &Nu, ch, &f[0]);

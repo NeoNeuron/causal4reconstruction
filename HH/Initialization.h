@@ -144,6 +144,20 @@ void Create_connect_matrix(long& seed)
 		CS[1][2] = S[0];
 		CS[0][3] = S[0];
 	}
+	else if (N == 6)
+	{
+		Connect_Matrix[0][1] = 1;
+		Connect_Matrix[1][2] = 1;
+		Connect_Matrix[0][3] = 1;
+		Connect_Matrix[1][3] = 1;
+		Connect_Matrix[0][4] = 1;
+
+		CS[0][1] = S[0];
+		CS[1][2] = S[0];
+		CS[0][3] = S[0];
+		CS[1][3] = S[0];
+		CS[0][4] = S[0];
+	}
 	else
 	{
 		for (int i = 0; i < N; i++)

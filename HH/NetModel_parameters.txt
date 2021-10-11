@@ -11,9 +11,9 @@ P_c:				0.25
 random_S:			0   ////(0-none 1-uniform 2-gauss 3-exponential 4-lognormal)
 random_Nu:			0   ////(0-none 1-uniform 2-gauss 3-exponential 4-lognormal)
 Lyapunov:			0
-record_data(spike/v):		0 0	
+record_data(spike/v):		1 0	
 Record_v_from_to: 		0 1e8
-Record_path:			D:/code/TGIC/data/
+Record_path:			./data/
 
 
 
