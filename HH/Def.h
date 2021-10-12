@@ -53,7 +53,8 @@ int I_CONST;                  // electrode current constant
 double I_const_input;         // constant input current
 //double *I_constant_input;
 
-double Nu,f[2];               // Feedforward Poisson rate and strength(E,I)  
+double Nu;               // Feedforward Poisson rate 
+double* f;				 // Feedforward Poisson strength (neuron-wise)
 double Omega;                 // Oscillation angular frequency
 double P_c;                   // Connect probability
 int random_S, random_Nu;					

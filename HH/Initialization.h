@@ -200,8 +200,22 @@ void Create_connect_matrix(long& seed)
 		}
 
 	}
+}
 
+void Assign_CS()
+{
+	CS = new double *[N];
+	for (int i = 0; i < N; i++) {
+		CS[i] = new double[N];
+		for (int j = 0; j < N; j++) {
+			if (Connect_Matrix[i][j] == 1)
+				CS[i][j] = S[0];
+		}
+	}
+}
 
+void Record_connect_matrix()
+{
 	if (record_data[0] || record_data[1])
 	{
 		FILE *fp;
@@ -489,7 +503,9 @@ void Initialization(long &seed0,long &seed2)
 	}
 	for (int j = 0; j < 1000; j++)
 		Random(seed0);
-	Create_connect_matrix(seed0);
+	// Create_connect_matrix(seed0);
+	Assign_CS();
+	Record_connect_matrix();
 
 
 }

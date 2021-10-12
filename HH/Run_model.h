@@ -272,15 +272,15 @@ void Record_Power_spectrum(double t)
 	}
 }
 
-void Update_Conductance(double t,struct neuron *a)  //t为末端时刻
+void Update_Conductance(double t,struct neuron *a)  //t为末锟斤拷时锟斤拷
 {
 	for (int i = 0; i < N; i++)  // update G_f G_ff
 		for (int j = 0; j < neu[i].Poisson_input_num; j++)
 		{
-			//neu[i].Poisson_input_time[j] = t; // 不校准
+			//neu[i].Poisson_input_time[j] = t; // 锟斤拷校准
 			double dt = t - neu[i].Poisson_input_time[j]; 
-			a[i].G_ff += (i < NE ? f[0] : f[1]) * (1 - dt / Sigma_d_E);
-			a[i].G_f += (i < NE ? f[0] : f[1]) * dt;
+			a[i].G_ff += f[i] * (1 - dt / Sigma_d_E);
+			a[i].G_f += f[i] * dt;
 
 			if (CP > 1e-6)
 			{
@@ -288,8 +288,8 @@ void Update_Conductance(double t,struct neuron *a)  //t为末端时刻
 				{
 					for (int k = 1; k < N; k++)
 					{
-						a[k].G_ff += (k < NE ? f[0] : f[1]) * (1 - dt / Sigma_d_E);
-						a[k].G_f += (k < NE ? f[0] : f[1]) * dt;
+						a[k].G_ff += f[i] * (1 - dt / Sigma_d_E);
+						a[k].G_f += f[i] * dt;
 					}
 				}
 			}
@@ -309,7 +309,7 @@ void Update_Conductance(double t,struct neuron *a)  //t为末端时刻
 				fwrite(&s, sizeof(double), 1, FP);
 			}
 
-			//a[k].last_fire_time = t; // 不校准
+			//a[k].last_fire_time = t; // 锟斤拷校准
 			double dt = t - a[k].last_fire_time;	// update G_se G_si	 
 			for (int i = 0; i < N; i++)
 				if (k < NE)

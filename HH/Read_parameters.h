@@ -6,6 +6,9 @@ void Read_parameters(long &seed, long &seed1)
 	fp = fopen("NetModel_parameters.txt", "r");
 
 	if(fp == NULL)
+		fp = fopen("./HH/NetModel_parameters.txt", "r");
+
+	if(fp == NULL)
 	{
 		printf("Error in Read_parameters()! :: Cann't open parameters input file! \n");
 		getchar();// system("pause");
@@ -22,11 +25,26 @@ void Read_parameters(long &seed, long &seed1)
 	fscanf(fp, "%s", ch);
 	for (int i=0; i<4; i++)
 		fscanf(fp, "%lf", &S[i]);
-	// printf("%s : %f %f %f %f\n", ch, S[0], S[1], S[2], S[3]);
 	fscanf(fp, "%s%d", ch, &I_CONST);
 
-	fscanf(fp, "%s%lf%s%lf", ch, &Nu, ch, &f[0]);
-	f[1] = f[0];
+	// Nu
+	fscanf(fp, "%s%lf", ch, &Nu);
+	// f
+	fscanf(fp, "%s", ch);
+	f = new double[N];
+	for (int i=0; i<N; i++) {
+		fscanf(fp, "%lf", &f[i]);
+		printf("%f", f[i]);
+	}
+
+	// Create the read the connect_matrix
+	fscanf(fp, "%s", ch);
+	Connect_Matrix = new double *[N];
+	for (int i = 0; i < N; i++) {
+		Connect_Matrix[i] = new double[N];
+		for (int j = 0; j < N; j++)
+			fscanf(fp, "%lf", &Connect_Matrix[i][j]);
+	}
 
 	fscanf(fp, "%s%lf", ch, &P_c);
 	fscanf(fp, "%s%d", ch, &random_S);
@@ -124,9 +142,6 @@ void out_put_filename()
 	strcat(str, "s="), sprintf(c, "%0.3f", S[0]), strcat(str, c);  
 	if (NE && NI)
 	{
-		strcat(str, "s="), sprintf(c, "%0.3f", S[2]), strcat(str, c);
-	}
-	if (N==3) {
 		strcat(str, "s="), sprintf(c, "%0.3f", S[2]), strcat(str, c);
 	}
 	strcat(str, "f="), sprintf(c, "%0.3f", f[0]), strcat(str, c);
