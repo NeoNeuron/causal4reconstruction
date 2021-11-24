@@ -53,6 +53,7 @@ int I_CONST;                  // electrode current constant
 double I_const_input;         // constant input current
 //double *I_constant_input;
 
+int full_toggle;			// toggle for full-version config.
 double Nu;               // Feedforward Poisson rate 
 double* f;				 // Feedforward Poisson strength (neuron-wise)
 double Omega;                 // Oscillation angular frequency

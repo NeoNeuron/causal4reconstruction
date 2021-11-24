@@ -503,8 +503,11 @@ void Initialization(long &seed0,long &seed2)
 	}
 	for (int j = 0; j < 1000; j++)
 		Random(seed0);
-	// Create_connect_matrix(seed0);
-	Assign_CS();
+	if (full_toggle) {
+		Assign_CS();
+	} else {
+		Create_connect_matrix(seed0);
+	}
 	Record_connect_matrix();
 
 
