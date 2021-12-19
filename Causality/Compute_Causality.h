@@ -121,11 +121,11 @@ void compute_s(double *s, int id)
 	}
 	*/
 
-	s[3] = 0;
+	s[3] = 0;	// p(x = 1)
 	for (int l = m[0] * m[1]; l < 2 * m[0] * m[1]; l++)
 		s[3] += z[id][l];
 
-	s[4] = 0;
+	s[4] = 0;   // p(y-[l] = 1)
 	for (int l = 0; l < m[0] * m[1]; l++)
 		s[4] += z[id][2 * l + 1];
 
@@ -142,7 +142,8 @@ void compute_s(double *s, int id)
 	}
 
 
-	////// suitable for order_y = 1 or yn=1
+	/* TODO: Disable calculation of p(x- = 1|y- = 1)-p(x- = 1|y- = 0)
+	// suitable for order_y = 1 or yn=1
 	double p11 = 0, p10 = 0;
 	for (int l = 0; l < m[0]; l++)
 	{
@@ -151,9 +152,22 @@ void compute_s(double *s, int id)
 	}
 	s[k + 6] = p11 / s[4] - p10 / (1 - s[4]);
 
+	*/
+
+	double p11 = 0, py = 0;
+	for (int l = 1; l <= 1; l++) //order[1]
+	{
+		int	id_y = int(pow(2.0, order[1] - l) + 0.01);
+		for (int i = 0; i < m[0]; i++) {
+			p11 += z[id][id_y + i * m[1] + m[0]*m[1]];
+			py  += z[id][id_y + i * m[1]] + z[id][id_y + i * m[1] + m[0]*m[1]];
+		}
+	}
+	s[k + 6] = p11 / py / s[3] - 1;
+
 	s[k + 7] = 0;
 
-	////// suitable for order_y = 1 or yn=1
+	// suitable for order_y = 1 or yn=1
 	for (int i = 0; i < m[0]; i++)
 	{
 		double p_a0, p_a1, ss;
@@ -634,7 +648,7 @@ void compute_GC_sum_DMI_NCC(double *s, int id)
 void compute_causality()
 {	
 	double *s;        // TE,y,x,px,py,p0,dp1,dp2,...,dpk, delta,  te_order5, GC, sumDMI, sumNCC^2, appro for 2sumDMI  
-					  //  px = p(x=1), py = p(y=1), delta = p(x=1|y=1)-p(x=1|y=0), dp = p(x=1|y-=1)-p(x=1|y-=0)	
+					  //  px = p(x=1), py = p(y=1), delta = p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1, dp = p(x=1|y-=1)-p(x=1|y-=0)	
 	int id;
 	s = new double[k + 12];    
 

@@ -79,24 +79,25 @@ void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101  ����
 {
 	int data_num;
 
-	int id_x = order[2] - 1 + tau;
-	int id_y = order[2] - 1 - 1;
+	int tid_x = order[2] - 1 + tau;
+	int tid_y = order[2] - 1 - 1;
 
 	for (int i = 0; i < data_length - (order[2] - 1 + tau); i++)
 	{
-		int index_x, index_y;
+		// Translate binary spike sequence to decimal represetation.
+		int x_coding, y_coding;
 
-		index_x = X[x][id_x];
-		index_y = X[y][id_y];
+		x_coding = X[x][tid_x];
+		y_coding = X[y][tid_y];
 
 		for (int j = 1; j < order[0] + 1; j++)
-			index_x = index_x * 2 + X[x][id_x - j];
+			x_coding = x_coding * 2 + X[x][tid_x - j];
 		for (int j = 1; j < order[1]; j++)
-			index_y = index_y * 2 + X[y][id_y - j];
-		z[y*N + x][index_x*m[1] + index_y] += 1.0;
+			y_coding = y_coding * 2 + X[y][tid_y - j];
+		z[y*N + x][x_coding*m[1] + y_coding] += 1.0;
 
-		id_x++;
-		id_y++;
+		tid_x++;
+		tid_y++;
 	}
 }
 
@@ -120,9 +121,9 @@ void Run_model()
 		exit(0);
 	}
 
-	/////////////////////	 compute the probability distribution	
+	//	 compute the probability distribution	
 	if(auto_T_max)
-		Find_T_Max(fp); ///////// find the data time T_Max
+		Find_T_Max(fp); // find the data time T_Max
 
 	if (T_Max / DT <= 0.99)
 	{
