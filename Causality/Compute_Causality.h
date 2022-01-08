@@ -160,9 +160,12 @@ void compute_s(double *s, int id)
 		int	id_y = int(pow(2.0, order[1] - l) + 0.01);
 		for (int i = 0; i < m[0]; i++) {
 			p11 += z[id][id_y + i * m[1] + m[0]*m[1]];
-			py  += z[id][id_y + i * m[1]] + z[id][id_y + i * m[1] + m[0]*m[1]];
+			py  += z[id][id_y + i * m[1] + m[0]*m[1]] + z[id][id_y + i * m[1]];
 		}
 	}
+	// if (p11 == 0) {
+	// 	printf("[WARNING]: p11 = %e, and py = %e\n", p11, py);
+	// }
 	s[k + 6] = p11 / py / s[3] - 1;
 
 	s[k + 7] = 0;
