@@ -48,7 +48,7 @@ int main(int argc,char **argv)
 		P_c = atof(argv[1]);
 		S[0] = atof(argv[2]); S[1] = S[0];
 		S[2] = atof(argv[3]); S[3] = S[2];
-		// f[0] = atof(argv[4]); f[1] = f[0];
+		f[0] = atof(argv[4]); f[1] = f[0];
 		Nu = atof(argv[5]);
 	}
 	// else if (argc == 7)
