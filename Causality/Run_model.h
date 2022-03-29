@@ -155,6 +155,7 @@ void Run_model()
 			y = i / N;
 			x = i % N;
 
+			// Comment below the calculate auto-correlation
 			if (y == x)
 				continue;
 			compute_p(data_length, y, x);

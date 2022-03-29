@@ -667,6 +667,7 @@ void compute_causality()
 			s[1] = i;
 			s[2] = j;
 
+			// Comment below the calculate auto-correlation
 			if (i == j)
 			{
 				fwrite(s, sizeof(double), k + 12, FP);
