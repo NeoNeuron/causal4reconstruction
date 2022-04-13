@@ -142,7 +142,8 @@ void compute_s(double *s, int id)
 	}
 
 
-	/* TODO: Disable calculation of p(x- = 1|y- = 1)-p(x- = 1|y- = 0)
+	/* 
+	TODO: Disable calculation of p(x- = 1|y- = 1)-p(x- = 1|y- = 0)
 	// suitable for order_y = 1 or yn=1
 	double p11 = 0, p10 = 0;
 	for (int l = 0; l < m[0]; l++)
@@ -154,8 +155,9 @@ void compute_s(double *s, int id)
 
 	*/
 
+    // Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
 	double p11 = 0, py = 0;
-	for (int l = 1; l <= 1; l++) //order[1]
+	for (int l = 1; l <= order[1]; l++) //order[1]
 	{
 		int	id_y = int(pow(2.0, order[1] - l) + 0.01);
 		for (int i = 0; i < m[0]; i++) {
