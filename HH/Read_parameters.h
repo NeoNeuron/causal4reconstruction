@@ -52,9 +52,9 @@ void Read_parameters(long &seed, long &seed1)
 		while (fgetc(fp) != '\n');
 	}
 
+	fscanf(fp, "%s", ch);
 	if (full_toggle) {
 		// Create the read the connect_matrix
-		fscanf(fp, "%s", ch);
 		Connect_Matrix = new double *[N];
 		for (int i = 0; i < N; i++) {
 			Connect_Matrix[i] = new double[N];
