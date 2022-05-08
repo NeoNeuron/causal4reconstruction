@@ -89,6 +89,7 @@ void Read_parameters(long &seed, long &seed1)
 	fscanf(fp, "%s%d%d", ch, &record_data[0], &record_data[1]);
 	fscanf(fp, "%s%lf%lf", ch, &Record_v_start, &Record_v_end);
 	fscanf(fp, "%s%s", ch, file);
+	fscanf(fp, "%s%s", ch, fi_neu_state);
 	fclose(fp);
 
 	if (N == NE)
@@ -184,6 +185,17 @@ void out_put_filename()
 		strcat(str, "-"), sprintf(c, "%d", TrialID), strcat(str, c);
 	}
 
+	// copy path to load neuron states
+	if (fi_neu_state != NULL && fi_neu_state[0] != '\0') {
+		char str_buff[200];
+		strcpy(str_buff, file), strcat(str_buff, fi_neu_state);
+		strcpy(fi_neu_state, str_buff);
+	}
+	// copy path to save neuron states
+	strcpy(str1, file), strcat(str1, str), strcat(str1, "_state.dat");
+	strcpy(fo_neu_state, str1);
+
+	// create FILE object to save spike train and voltage
 	if (record_data[0])
 	{
 		strcpy(str1, file), strcat(str1, str), strcat(str1, "_spike_train.dat");

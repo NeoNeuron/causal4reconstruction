@@ -56,36 +56,25 @@ int main(int argc,char **argv)
 	// 	P_c = atof(argv[1]);
 	// 	S[0] = atof(argv[2]); S[1] = S[0];
 	// 	S[2] = atof(argv[3]); S[3] = S[2];
-	// 	// f[0] = atof(argv[4]); f[1] = f[0];
+	// 	f[0] = atof(argv[4]); f[1] = f[0];
 	// 	Nu = atof(argv[5]);
 	// 	CP = atof(argv[6]);
 	// }
 
-	
 
-//	P_c = atof(argv[6]);///
-//	Nu = atof(argv[6]);
-
-	//printf("dt=%f\n",T_step);
-
-
-	/////////////////////	
 	out_put_filename();
 	seed0 = seed;    // Create connect matrix
 	seed2 = seed1;  // Initialization & Poisson
 	Initialization(seed0, seed2);
-
-
-
-
-	
-	//ffp1 = fopen("aaa.dat","wb");
 
 	t0 = clock();
 	if (Lyapunov)
 		MLE = Largest_Lyapunov(seed2, 1, T_step);
 	else
 		Run_model();
+
+	// save neuronal states
+	SaveNeuronState();
 
 	double total_fire_num[2] = { 0 };
 	for (int i = 0; i < N; i++)
@@ -100,8 +89,6 @@ int main(int argc,char **argv)
 	t1 = clock();
 	printf("Total time = %0.3fs \n\n", double(t1 - t0) / CLOCKS_PER_SEC);
 	Delete();
-	
-	//fclose(ffp1);
 }
 
 

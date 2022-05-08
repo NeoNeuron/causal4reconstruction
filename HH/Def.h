@@ -73,6 +73,8 @@ double Record_v_start, Record_v_end;
 char filename[300] = "";		   // out put file name	
 int RecordFP = 0;					// record fire pattern 0101000101
 int TrialID = 0;			   // Default: 0.  for multiple trials with fixed CS and change Poisson seeds 
+char fi_neu_state[200];			// path to load neuron states
+char fo_neu_state[200];			// path to save neuron states
 
 
 //-----------------------------------------------------------------------------
@@ -99,7 +101,7 @@ struct neuron
 
 	int state;     //1--neu,0--neu_old
 };
-struct neuron *neu, *neu_old;
+struct neuron *neu;// *neu_old;
 
 
 #define MIN(a,b)  ((a)<(b)?(a):(b))

@@ -8,7 +8,8 @@ void Delete()
 	}
 	delete[] Connect_Matrix;
 	delete[] CS;
-	delete[] neu, delete[] neu_old;
+	delete[] neu;
+	//, delete[] neu_old;
 
 	if (record_data[0])
 		fclose(FP); 
