@@ -1,80 +1,30 @@
 double Decide_S(int i, int j, long &seed, long &seed1)  // i-->j
 {
+	// scaling
+	double s;
 	if (i < NE && j < NE)
-	{
-		double s = S[0];  /////////////////scaling
-		if (random_S == 0)
-			return s;
-		else if (random_S == 1)						// uniform [0, 2s]
-			return Random(seed) * 2 * s;
-		else if (random_S == 2)						// gauss N(s,(s/4)^2)
-			return abs(sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*s / 4 + s);
-		else if (random_S == 3)                     // Exponential E(s)
-			return -log(1 - Random(seed)) * s;
-		else		//// Log normal sigma=0.794 mu=log(s)-sigma^2/2.  Std/Mean=0.93  X~exp(mu+sigma*Z),Z~N(0,1)
-		{
-			double sigma, mu;
-			sigma = 0.794, mu = log(s) - sigma * sigma / 2;
-			double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sigma + mu;
-			return exp(b);
-		}
-	}
+		s = S[0];  
 	else if (i < NE && j >= NE)
-	{
-		double s = S[1];   //////////// scaling
-		if (random_S == 0)
-			return s;
-		else if (random_S == 1)
-			return Random(seed) * 2 * s;
-		else if (random_S == 2)
-			return abs(sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*s / 4 + s);
-		else if (random_S == 3)
-			return -log(1 - Random(seed)) * s;
-		else
-		{
-			double sigma, mu;
-			sigma = 0.794, mu = log(s) - sigma * sigma / 2;
-			double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sigma + mu;
-			return exp(b);
-		}
-	}
+		s = S[1];
 	else if (i >= NE && j < NE)
-	{
-		double s = S[2];		//////////scaling
-		if (random_S == 0)
-			return s;
-		else if (random_S == 1)
-			return Random(seed) * 2 * s;
-		else if (random_S == 2)
-			return abs(sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*s / 4 + s);
-		else if (random_S == 3)
-			return -log(1 - Random(seed)) * s;
-		else
-		{
-			double sigma, mu;
-			sigma = 0.794, mu = log(s) - sigma * sigma / 2;
-			double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sigma + mu;
-			return exp(b);
-		}
-	}
+		s = S[2];
 	else
+		s = S[3];
+
+	if (random_S == 0)
+		return s;
+	else if (random_S == 1)						// uniform [0, 2s]
+		return Random(seed) * 2 * s;
+	else if (random_S == 2)						// gauss N(s,(s/4)^2)
+		return abs(sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*s / 4 + s);
+	else if (random_S == 3)                     // Exponential E(s)
+		return -log(1 - Random(seed)) * s;
+	else		// Log normal sigma=0.794 mu=log(s)-sigma^2/2.  Std/Mean=0.93  X~exp(mu+sigma*Z),Z~N(0,1)
 	{
-		double s = S[3];		///////////scaling
-		if (random_S == 0)
-			return s;
-		else if (random_S == 1)
-			return Random(seed) * 2 * s;
-		else if (random_S == 2)
-			return abs(sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*s / 4 + s);
-		else if (random_S == 3)
-			return -log(1 - Random(seed)) * s;
-		else
-		{
-			double sigma, mu;
-			sigma = 0.794, mu = log(s) - sigma * sigma / 2;
-			double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sigma + mu;
-			return exp(b);
-		}
+		double sigma, mu;
+		sigma = 0.794, mu = log(s) - sigma * sigma / 2;
+		double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sigma + mu;
+		return exp(b);
 	}
 }
 
@@ -96,7 +46,6 @@ double Decide_Nu(int i, long &seed, long &seed1)  // i-->j
 		return exp(b);
 	}
 		
-	
 }
 
 void Create_connect_matrix(long& seed)
@@ -107,24 +56,17 @@ void Create_connect_matrix(long& seed)
 
 	Connect_Matrix = new double *[N];
 	for (int i = 0; i < N; i++)
-		Connect_Matrix[i] = new double[N];
+		Connect_Matrix[i] = new double[N]{0};
 
 	CS = new double *[N];
 	for (int i = 0; i < N; i++)
-		CS[i] = new double[N];
+		CS[i] = new double[N]{0};
 	long seed1 = 15, seed2 = 43;
 
 	for (int i = 0; i < 1000; i++)
 	{
 		Random(seed1), Random(seed2);
 	}
-
-	for (int i = 0; i < N; i++)
-		for (int j = 0; j < N; j++)
-		{
-			Connect_Matrix[i][j] = 0;
-			CS[i][j] = 0;
-		}
 
 	if (N == 3)
 	{
@@ -206,7 +148,7 @@ void Assign_CS()
 {
 	CS = new double *[N];
 	for (int i = 0; i < N; i++) {
-		CS[i] = new double[N];
+		CS[i] = new double[N]{0};
 		for (int j = 0; j < N; j++) {
 			if (Connect_Matrix[i][j] == 1)
 				CS[i][j] = S[0];
@@ -382,7 +324,7 @@ void Initialize_library()
 }
 
 
-//// if power spectrum, trace for v
+// if power spectrum, trace for v
 void Initial_library_trace()
 {
 	char str[200];

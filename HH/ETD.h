@@ -13,7 +13,7 @@ void Update_F(struct neuron &a)
 	a.F[id][7] = alpha_h(a.v) - a.h * (alpha_h(a.v) + beta_h(a.v));
 	a.F[id][8] = alpha_n(a.v) - a.n * (alpha_n(a.v) + beta_n(a.v));
 
-	a.id_F = id;       ////each id_F stands for the latest information	
+	a.id_F = id;       // each id_F stands for the latest information	
 }
 	
 double ETD2_ToFind_vmhn(struct neuron &a, int ID, double h, double h1)

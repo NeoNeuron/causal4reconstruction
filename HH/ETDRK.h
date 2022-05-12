@@ -54,7 +54,7 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 		an[3] = a.n*g[3] + FF[0][3] * (g[3] - 1) / A[3]; //n
 		///////////////////// 1
 
-		Update_neu_G(n, a, t, h / 2); //include a.t=t+dt  °ë²½³¤£¬¿ÉÄÜÓĞ¸¡µãÔËËãÎÊÌâ
+		Update_neu_G(n, a, t, h / 2); //include a.t=t+dt  ï¿½ë²½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		double I_input;
 		if (I_CONST)
 			I_input = I_const_input;
@@ -103,7 +103,7 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 		/////////////////////  3
 
 
-		Update_neu_G(n, a, t + h / 2, h / 2); //include a.t=t+dt  °ë²½³¤£¬¿ÉÄÜÓĞ¸¡µãÔËËãÎÊÌâ   
+		Update_neu_G(n, a, t + h / 2, h / 2); //include a.t=t+dt  ï¿½ë²½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½   
 		if (I_CONST)
 			I_input = I_const_input;
 		else
@@ -159,7 +159,7 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 		a.m = a.m*g[1] + FF[0][1] * gm[1][0] + (FF[1][1] + FF[2][1])*gm[1][1] + FF[3][1] * gm[1][2];
 		a.h = a.h*g[2] + FF[0][2] * gm[2][0] + (FF[1][2] + FF[2][2])*gm[2][1] + FF[3][2] * gm[2][2];
 		a.n = a.n*g[3] + FF[0][3] * gm[3][0] + (FF[1][3] + FF[2][3])*gm[3][1] + FF[3][3] * gm[3][2];
-		a.t = t + dt;      // °ë²½³¤£¬¿ÉÄÜÓĞ¸¡µãÔËËãÎÊÌâ, ÖØĞÂ¼ÆËã
+		a.t = t + dt;      // ï¿½ë²½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½
 
 		if (I_CONST)
 			a.I_input = I_const_input;

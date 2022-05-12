@@ -1,6 +1,4 @@
-
-
-/////////////// evolve for one single time step from t to t+dt
+// evolve for one single time step from t to t+dt
 void evolve_model_with_correct_timestep(int n, struct neuron &a, double t, double dt)
 {
 	void Update_Lib_way(struct neuron &neu_a, int interpolation_order, int input_dim, int output_dim);
@@ -144,7 +142,7 @@ void Update_Lib_way(struct neuron &neu_a, int interpolation_order, int input_dim
 	neu_a.m = output[1];
 	neu_a.h = output[2];
 	neu_a.n = output[3];
-////	neu_a.t += T_ref;
+//	neu_a.t += T_ref;
 	delete[]l, delete[]a, delete[]input, delete[]output, delete[]b, delete[]c;
 
 }
@@ -420,7 +418,7 @@ void Run_model()
 			tt_fftw = t;
 			Record_Power_spectrum(t);
 		}
-		if (RecordFP && t - t_fp >= 10)				//// fire pattern 0100101010
+		if (RecordFP && t - t_fp >= 10)				// fire pattern 0100101010
 		{
 			t_fp = t;
 			record_fire_pattern(t);
