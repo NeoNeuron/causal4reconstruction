@@ -56,6 +56,7 @@ double I_const_input;         // constant input current
 int full_toggle;			// toggle for full-version config.
 double Nu;               // Feedforward Poisson rate 
 double* f;				 // Feedforward Poisson strength (neuron-wise)
+double fE=NAN, fI=NAN;				 // Homogeneous feedforward Poisson strength (E/I)
 double Omega;                 // Oscillation angular frequency
 double P_c;                   // Connect probability
 int random_S, random_Nu;					

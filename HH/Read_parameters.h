@@ -34,22 +34,20 @@ void Read_parameters(long &seed, long &seed1)
 
 	// f
 	fscanf(fp, "%s", ch);
-	f = new double[N];
+	f = new double[N]{0};
 	if (full_toggle) { // load f for all neurons.
 		for (int i=0; i<N; i++) {
 			fscanf(fp, "%lf", &f[i]);
-			printf("%f", f[i]);
+			printf("%.2f\t", f[i]);
 		}
+		while (fgetc(fp) != '\n'); // avoid extra parameters
 	} else { // load f for E and I types, for each type of neuron, f is identical.
-		fscanf(fp, "%lf", &f[0]);
-		printf("%f", f[0]);
-		for (int i=1; i<NE; i++)
-			f[i] = f[0];
-		fscanf(fp, "%lf", &f[NE]);
-		printf("%f", f[NE]);
-		for (int i=1; i<NI; i++)
-			f[i+NE] = f[NE];
+		fscanf(fp, "%lf%lf", &fE, &fI);
 		while (fgetc(fp) != '\n');
+		for (int i=0; i<NE; i++)
+			f[i] = fE;
+		for (int i=0; i<NI; i++)
+			f[i+NE] = fI;
 	}
 
 	fscanf(fp, "%s", ch);
@@ -90,7 +88,10 @@ void Read_parameters(long &seed, long &seed1)
 	fscanf(fp, "%s%lf%lf", ch, &Record_v_start, &Record_v_end);
 	fscanf(fp, "%s%s", ch, file);
 	fscanf(fp, "%s%s", ch, fi_neu_state);
-	fclose(fp);
+	if (fclose(fp)) {                  //close was successful
+        printf("\nERROR CLOSING FILE\n");
+		exit(-1);
+    }
 
 	if (N == NE)
 		strcat(file, "EE/N=");

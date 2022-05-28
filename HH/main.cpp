@@ -35,16 +35,26 @@ int main(int argc,char **argv)
 		P_c = atof(argv[1]);
 		S[0] = atof(argv[2]); S[1] = S[0];
 		S[2] = atof(argv[3]); S[3] = S[2];
-		f[0] = atof(argv[4]); f[1] = f[0];
+		fE = atof(argv[4]); fI = fE;
 		Nu = atof(argv[5]);
 	} else if (argc == 7) {
 		P_c = atof(argv[1]);
 		S[0] = atof(argv[2]); S[1] = S[0];
 		S[2] = atof(argv[3]); S[3] = S[2];
-		f[0] = atof(argv[4]); f[1] = f[0];
+		fE = atof(argv[4]); fI = fE;
 		Nu = atof(argv[5]);
 		CP = atof(argv[6]);
 	}
+
+	if (~isnan(fE)) {
+		for (int i=0; i<NE; i++)
+			f[i] = fE;
+	}
+	if (~isnan(fI)) {
+		for (int i=0; i<NI; i++)
+			f[i+NE] = fI;
+	}
+	printf("f = (E : %.3lf, I : %.3lf)\n", fE, fI);
 
 
 	out_put_filename();
@@ -69,7 +79,7 @@ int main(int argc,char **argv)
 	
 	mean_fire_rate = (total_fire_num[0] + total_fire_num[1]) / T_Max * 1000 / N; //(Hz)
 	printf("mean rate (Hz) = %0.2f ", mean_fire_rate);
-	printf("%f %f\n", total_fire_num[0] / T_Max * 1000 / NE, total_fire_num[1] / T_Max * 1000 / NI);
+	printf("(E : %.3f, I : %.3f)\n", total_fire_num[0] / T_Max * 1000 / NE, total_fire_num[1] / T_Max * 1000 / NI);
 
 	t1 = clock();
 	printf("Total time = %0.3fs \n\n", double(t1 - t0) / CLOCKS_PER_SEC);
