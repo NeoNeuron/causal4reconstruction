@@ -1,3 +1,7 @@
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Core>
+using namespace Eigen;
+
 void compute_s(double *s, int id)
 {
 	// TE y-->x

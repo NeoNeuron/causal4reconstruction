@@ -1,97 +1,86 @@
 #include "mkdir.h"
 
-void Read_parameters(long &seed, long &seed1)
+void Read_parameters(po::variables_map& vm)
 {
-	FILE *fp;
-	fp = fopen("NetModel_parameters.txt", "r");
-
-	if(fp == NULL)
-		fp = fopen("./HH/NetModel_parameters.txt", "r");
-
-	if(fp == NULL)
-	{
-		printf("Error in Read_parameters()! :: Cann't open parameters input file! \n");
-		getchar();// system("pause");
-		exit(1);
-	}
-
 	char ch[100];
-
-	fscanf(fp, "%s%d%s%d", ch, &NE, ch, &NI);
+	NE = vm["NE"].as<int>();
+	NI = vm["NI"].as<int>();
 	N = NE + NI;
-	fscanf(fp, "%s%ld%ld", ch, &seed, &seed1);
+	T_Max = vm["T_Max"].as<double>();
+	T_step = vm["T_step"].as<double>();
 
-	fscanf(fp, "%s%lf%s%lf", ch, &T_Max, ch, &T_step);
-	fscanf(fp, "%s", ch);
+  vector<double> s_buff;
+	str2vec(vm["S"].as<string>(), s_buff);
 	for (int i=0; i<4; i++)
-		fscanf(fp, "%lf", &S[i]);
-	fscanf(fp, "%s%d", ch, &I_CONST);
+		S[i] = s_buff[i];
+
+  I_CONST = vm["I_CONST"].as<double>();
 
 	// Nu
-	fscanf(fp, "%s%lf", ch, &Nu);
+  Nu = vm["Nu"].as<double>();
 	// full-version config toggle:
-	fscanf(fp, "%s%d", ch, &full_toggle);
+  full_toggle = vm["full_mode"].as<int>();
 
 	// f
-	fscanf(fp, "%s", ch);
 	f = new double[N]{0};
 	if (full_toggle) { // load f for all neurons.
+    vector<double> f_buff;
+    str2vec(vm["f"].as<string>(), f_buff);
 		for (int i=0; i<N; i++) {
-			fscanf(fp, "%lf", &f[i]);
+      f[i] = f_buff[i];
 			printf("%.2f\t", f[i]);
 		}
-		while (fgetc(fp) != '\n'); // avoid extra parameters
 	} else { // load f for E and I types, for each type of neuron, f is identical.
-		fscanf(fp, "%lf%lf", &fE, &fI);
-		while (fgetc(fp) != '\n');
+    fE = vm["fE"].as<double>();
+    fI = vm["fI"].as<double>();
 		for (int i=0; i<NE; i++)
 			f[i] = fE;
 		for (int i=0; i<NI; i++)
 			f[i+NE] = fI;
+    printf("f = (E : %.3lf, I : %.3lf)\n", fE, fI);
 	}
 
-	fscanf(fp, "%s", ch);
+  // CS
 	if (full_toggle) {
+    vector<double> conn_buff;
+    str2vec(vm["conn_matrix"].as<string>(), conn_buff);
 		// Create the read the connect_matrix
 		Connect_Matrix = new double *[N];
 		for (int i = 0; i < N; i++) {
 			Connect_Matrix[i] = new double[N];
 			for (int j = 0; j < N; j++)
-				fscanf(fp, "%lf", &Connect_Matrix[i][j]);
+				Connect_Matrix[i][j] = conn_buff[i*N+j];
 		}
-	} else { // Connect_Matrix is randomly generated following specific distribution.
-		while (fgetc(fp) != '\n');
 	}
 
-	fscanf(fp, "%s%lf", ch, &P_c);
-	fscanf(fp, "%s%d", ch, &random_S);
+  P_c = vm["P_c"].as<double>();
+  random_S = vm["random_S"].as<int>();
+  random_Nu = vm["random_Nu"].as<int>();
 	if (random_S > 4 || random_S < 0)
 	{
 		printf("Error random_S=%d\n", random_S);
 		getchar();
 		exit(0);
 	}
-	while (fgetc(fp) != '\n');
 
-	fscanf(fp, "%s%d", ch, &random_Nu);
 	if (random_Nu > 4 || random_Nu < 0)
 	{
 		printf("Error random_Nu=%d\n", random_Nu);
 		getchar();
 		exit(0);
 	}
-	while (fgetc(fp) != '\n');
 
+  Lyapunov = vm["Lyapunov"].as<int>();
+  record_data[0] = vm["record_spk"].as<int>();
+  record_data[1] = vm["record_v"].as<int>();
 
-	fscanf(fp, "%s%d", ch, &Lyapunov);
-	fscanf(fp, "%s%d%d", ch, &record_data[0], &record_data[1]);
-	fscanf(fp, "%s%lf%lf", ch, &Record_v_start, &Record_v_end);
-	fscanf(fp, "%s%s", ch, file);
-	fscanf(fp, "%s%s", ch, fi_neu_state);
-	if (fclose(fp)) {                  //close was successful
-        printf("\nERROR CLOSING FILE\n");
-		exit(-1);
-    }
+  vector<double> vlim_buff;
+  str2vec(vm["record_vlim"].as<string>(), vlim_buff);
+	Record_v_start = vlim_buff[0];
+  Record_v_end = vlim_buff[1];
+
+	strcpy(file, vm["record_path"].as<string>().c_str());
+  strcpy(fi_neu_state, vm["state_path"].as<string>().c_str());
 
 	if (N == NE)
 		strcat(file, "EE/N=");

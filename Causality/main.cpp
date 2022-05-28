@@ -6,6 +6,7 @@
 
 
 #define _CRT_SECURE_NO_WARNINGS
+#include "common_header.h"
 #include "def.h"
 #include "Read_parameters.h"
 #include "New_delete.h"
@@ -18,7 +19,7 @@ int main(int argc, char **argv)
 {
     clock_t t0, t1;
     // Config program options:
-    po::options_description generic("All Options");
+    po::options_description generic("Generic Options");
     generic.add_options()
         ("help,h", "produce help message")
         ("verbose,v", po::bool_switch(&verbose), "show output")
@@ -32,7 +33,7 @@ int main(int argc, char **argv)
         ("order", po::value<string>()->default_value("1 1"), "order of TE. Syntax: 'order_x order_y'; ")
         ("T_Max", po::value<double>()->default_value(1e7), "Maximum length of time series.")
         ("DT", po::value<double>()->default_value(2e4), "Minimum length of time series.")
-        ("auto_T_max", po::value<double>()->default_value(1.0), "")
+        ("auto_T_max", po::value<int>()->default_value(1), "")
         ("bin", po::value<double>()->default_value(0.5), "time bin for causality calculation.")
         ("sample_delay", po::value<double>()->default_value(0.0), "tau := time delay")
         ("matrix_name", po::value<string>()->default_value(""), "filename of connectivity matrix.")

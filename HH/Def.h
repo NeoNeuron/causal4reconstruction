@@ -1,20 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <cmath>
-#include <ctime>
-#include <cstring>
-#include <malloc.h>
-#include <algorithm>
-#include <omp.h>
 
 using namespace std;
 #define PI (atan(1)*4)
 
 int num_threads_openmp;
-
-
 
 //-----------------------------------------------------------------------------
 //		Parameters with fixed value 
@@ -77,7 +66,6 @@ int TrialID = 0;			   // Default: 0.  for multiple trials with fixed CS and chan
 char fi_neu_state[200];			// path to load neuron states
 char fo_neu_state[200];			// path to save neuron states
 
-
 //-----------------------------------------------------------------------------
 //		Netwrok Information
 //-----------------------------------------------------------------------------
@@ -104,9 +92,6 @@ struct neuron
 };
 struct neuron *neu;// *neu_old;
 
-
-#define MIN(a,b)  ((a)<(b)?(a):(b))
-#define MAX(a,b)  ((a)>(b)?(a):(b))
 //-----------------------------------------------------------------------------
 //		Record firing time and voltage
 //-----------------------------------------------------------------------------

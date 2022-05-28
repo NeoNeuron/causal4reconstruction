@@ -1,16 +1,5 @@
 void Read_parameters(po::variables_map& vm)
 {
-	FILE *fp;
-
-	fp = fopen(vm["config"].as<string>().c_str(), "r");
-
-	if (fp == NULL)
-	{
-		printf("Error in Read_parameters()! :: Cann't open parameters input file! \n");
-		getchar();// system("pause");
-		exit(1);
-	}
-
 	char ch[100];
 
 	NE = vm["NE"].as<int>();
@@ -20,45 +9,35 @@ void Read_parameters(po::variables_map& vm)
 	DT = vm["DT"].as<double>();
 	if (DT <= 1e5)
 		DT = 1e5;
-	// fscanf(fp, "%s%d", ch, &auto_T_max);
-	auto_T_max = vm["auto_T_max"].as<double>();
+	auto_T_max = vm["auto_T_max"].as<int>();
 
 
 	bin = vm["bin"].as<double>();
-    vector<int> order_vec = str2vec(vm["order"].as<string>());
+    vector<int> order_vec;
+	str2vec(vm["order"].as<string>(), order_vec);
 	for (int i = 0; i < 2; i++)
 		order[i] = order_vec[i];
 
-	fscanf(fp, "%s%lf", ch, &delay);
 	delay = vm["sample_delay"].as<double>();
-	//int aa;
-	//fscanf(fp, "%s%d", ch, &aa);
 
 	strcpy(input_filename,  vm["filename"].as<string>().c_str());
 	strcpy(matrix_name,  vm["matrix_name"].as<string>().c_str());
 	strcpy(path_input,    vm["path_input"].as<string>().c_str());
 	strcpy(path_output,  vm["path_output"].as<string>().c_str());
 
-	if (N == NE)
-	{
-		strcat(path_input, "EE/N=");
+	if (N == NE) {
+		strcat(path_input,  "EE/N=");
 		strcat(path_output, "EE/N=");
-	}
-	else if (N == NI)
-	{
-		strcat(path_input, "II/N=");
+	} else if (N == NI) {
+		strcat(path_input,  "II/N=");
 		strcat(path_output, "II/N=");
-	}
-	else
-	{
-		strcat(path_input, "EI/N=");
+	} else {
+		strcat(path_input,  "EI/N=");
 		strcat(path_output, "EI/N=");
 	}
 
 	sprintf(ch, "%d", N), strcat(path_input, ch), strcat(path_input, "/");
 	sprintf(ch, "%d", N), strcat(path_output, ch), strcat(path_output, "/");
-
-	fclose(fp);
 }
 
 void Output_filename()

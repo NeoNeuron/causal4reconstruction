@@ -1,19 +1,3 @@
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <cmath>
-#include <ctime>
-#include <cstring>
-#include <malloc.h>
-#include <omp.h>
-#include <algorithm>
-
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Core>
-#include <boost/program_options.hpp>
-namespace po = boost::program_options;
-
-using namespace Eigen;
 using namespace std;
 
 int num_threads_openmp;
@@ -43,17 +27,3 @@ FILE *FP;           // output pairwise TE. (TE,y,x,px,py,p0,dp1,dp2,...,dpk,delt
 					// y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. delta = p(x = 1,y- = 1)/(p(x = 1)p(y- = 1)) - 1
 
 bool verbose;
-
-/////////
-#define MAX(a,b)  ((a)>(b)?(a):(b))
-
-std::vector<int> str2vec(std::string str) {
-    std::vector<int> out;
-    std::stringstream ss(str);
-
-    int tmpVal;
-    while (ss >> tmpVal)
-        out.push_back(tmpVal);
-
-    return out;
-}
