@@ -61,6 +61,7 @@ int main(int argc,char **argv) {
     ("record_vlim", po::value<string>()->default_value("0 1e8"), "time range to record voltage trace.")
     ("record_path", po::value<string>()->default_value("./data/"), "path to save data")
     ("state_path",  po::value<string>()->default_value(""), "path to load init state of neurons.")
+    ("save_mode",   po::value<string>()->default_value("w"), "'a' for append, 'w' for write by overwrite original data file")
     ;
   // create variable map
   po::variables_map vm;

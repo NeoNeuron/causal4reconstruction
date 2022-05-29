@@ -76,11 +76,18 @@ void Read_parameters(po::variables_map& vm)
 
   vector<double> vlim_buff;
   str2vec(vm["record_vlim"].as<string>(), vlim_buff);
-	Record_v_start = vlim_buff[0];
+  Record_v_start = vlim_buff[0];
   Record_v_end = vlim_buff[1];
 
-	strcpy(file, vm["record_path"].as<string>().c_str());
+  strcpy(file, vm["record_path"].as<string>().c_str());
   strcpy(fi_neu_state, vm["state_path"].as<string>().c_str());
+  strcpy(save_mode, vm["save_mode"].as<string>().c_str());
+
+  // if no neu_state_file
+	if ((fi_neu_state == NULL || fi_neu_state[0] == '\0') && strcmp(save_mode, "w")) {
+		WARNING("WARNING: no fi_neu_state provided! Force save_mode to 'w'.\n");
+    strcpy(save_mode, "w");
+  }
 
 	if (N == NE)
 		strcat(file, "EE/N=");
@@ -191,15 +198,17 @@ void out_put_filename()
 	strcpy(fo_neu_state, str1);
 
 	// create FILE object to save spike train and voltage
+  char open_mode[2];
+  strcpy(open_mode, save_mode), strcat(open_mode, "b");
 	if (record_data[0])
 	{
 		strcpy(str1, file), strcat(str1, str), strcat(str1, "_spike_train.dat");
-		FP = fopen(str1, "wb");
+		FP = fopen(str1, open_mode);
 	}
 	if (record_data[1])
 	{
 		strcpy(str1, file), strcat(str1, str), strcat(str1, "_voltage.dat");
-		FP1 = fopen(str1, "wb");
+		FP1 = fopen(str1, open_mode);
 	}
 
 	if (Power_spectrum)				

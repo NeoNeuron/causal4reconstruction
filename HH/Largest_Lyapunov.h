@@ -53,7 +53,6 @@ double Largest_Lyapunov(long &seed, double dt,double h)
 	double *u = new double[n];
 
 	double t = 0, tt = 0, e0 = 1.0e-6;   //edit
-	double t_test = 0;
 	int step = 0, max_step, m;
 	
 	double lyapunov = 0, lyapunov_old;

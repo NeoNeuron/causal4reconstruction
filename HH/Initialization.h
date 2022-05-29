@@ -412,10 +412,20 @@ void Initialization(long &seed0,long &seed2)
 
 	if (fi_neu_state != NULL && fi_neu_state[0] != '\0') {
 		FILE* fp_buff = fopen(fi_neu_state, "rb"); 
+		if(fp_buff == NULL) {
+			printf("Error in Initialization()! :: Cann't open neu_state file! \n");
+			getchar();// system("pause");
+			exit(1);
+		}
 		for (int i=0; i < N; i++) {
 			fread(&neu[i], sizeof(struct neuron), 1, fp_buff);
 			neu[i].Poisson_input_time = new double[int(T_step * 100 * 2) + 5];
 			neu[i].Poisson_input_num = -1;
+			if (~strcmp(save_mode, "w")) {
+				neu[i].t = 0;
+				neu[i].fire_num = 0;
+				neu[i].last_fire_time = -1e5;
+			}
 		}
 		fclose(fp_buff);
 	} else {

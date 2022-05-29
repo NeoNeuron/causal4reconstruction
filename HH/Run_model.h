@@ -236,7 +236,7 @@ void Generate_Poisson_times(struct neuron &a, double t, double dt)
 	double t1;
 
 	if (k == -1)
-		t1 = -log(1 - Random(a.seed)) / a.Nu; 
+		t1 = a.t - log(1 - Random(a.seed)) / a.Nu; 
 	else
 		t1 = a.Poisson_input_time[k];   
 
@@ -334,8 +334,9 @@ void Run_model()
 		exit(0);
 	}
 
-	double t = 0, tt = 0, tt_fftw = 0, t_lib = 0, t_fp = 0;
-	double t_test = 0, s = -100, ss = neu[0].v;
+	double t = neu[0].t, last_record_t = neu[0].t, tt_fftw = 0, t_lib = 0, t_fp = 0;
+	T_Max += neu[0].t;
+	double s = -100, ss = neu[0].v;
 	double I_th;
 	long seed_record_Nu = 140719001;
 	for (int i = 0; i < 973; i++)
@@ -365,9 +366,9 @@ void Run_model()
 			printf("Time cost is %0.2f s, run time is %0.2f s\n", double(te - ts0) / CLOCKS_PER_SEC, t);
 		}
 
-		if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - tt >= 0.5 - 1e-8) // for library method
+		if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - last_record_t >= 0.5-1e-5) // for library method
 		{
-			tt = t;
+			last_record_t = t;
 			fwrite(&t, sizeof(double), 1, FP1);
 			for (int id = 0; id < N; id++)
 				if (!(t - neu[id].last_fire_time <= T_ref && Lib_method))
@@ -380,9 +381,9 @@ void Run_model()
 				}
 		}
 
-		//if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - tt >= 0.5 - 1e-8) 
+		//if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - last_record_t >= 0.5 - 1e-8) 
 		//{
-		//	tt = t;
+		//	last_record_t = t;
 		//	fwrite(&t, sizeof(double), 1, FP1);
 		//	for (int id = 0; id < N; id++)
 		//		if (!(t - neu[id].last_fire_time <= T_ref && Lib_method))
@@ -398,9 +399,9 @@ void Run_model()
 		//		}
 		//}
 
-		//if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - tt >= 0.01 - 1e-8) // for library method
+		//if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - last_record_t >= 0.01 - 1e-8) // for library method
 		//{
-		//	tt = t;
+		//	last_record_t = t;
 		//	fwrite(&t, sizeof(double), 1, FP1);
 		//	fwrite(&neu[0].v, sizeof(double), 1, FP1);
 		//	fwrite(&neu[0].m, sizeof(double), 1, FP1);
