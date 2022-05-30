@@ -26,6 +26,13 @@ c_inv = {
     '#FF4684': '#4141C2',
 }
 
+def get_conv_config():
+    key_pairs = (('MI', 'CC'), ('GC', 'CC'), ('TE', 'MI'), ('GC', 'TE'))
+    mk = ('o', 'o', '+', 'x')
+    color=('b', 'orange', 'g', 'r')
+    alphas = (0.4, 0.4, 1, 1)
+    return key_pairs, mk, color, alphas
+
 def add_log_minor_tick(ax, axis='x'):
     minor = LogLocator(base = 10.0, subs = np.arange(1.0, 10.0) * 0.1, numticks = 10)
     if axis in ['x', 'both']:
