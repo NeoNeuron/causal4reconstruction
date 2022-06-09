@@ -411,6 +411,7 @@ def scan_pm_multi(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwargs
     Returns:
         list: list of results from subprocess.run()
     """
+    #TODO: check kwargs works or not, by varying u=0.1
     def cat_name(dtype='HH', p=0.25, s=0.02, f=0.1, u=0.1, **kwargs):
         if s>=0.001:
             return f'{dtype:s}p={p:.2f}s={s:.3f}f={f:.3f}u={u:.3f}'
