@@ -53,13 +53,19 @@ def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
 
     if hist_range is None:
         # determine histogram value range
-        data_buff = cau.load_from_single(fname, 'TE')[inf_mask]
-        data_buff = np.log10(data_buff)
+        data_buff = cau.load_from_single(fname, 'TE')
+        if np.any(data_buff<0):
+            print('WARNING: some negative entities occurs!')
+            inf_mask[data_buff<0] = False
+        data_buff = np.log10(data_buff[inf_mask])
         hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
 
     ratio = np.sum(conn[inf_mask])/np.sum(inf_mask)
     for counter, key in enumerate(('CC', 'MI', 'GC', 'TE')):
         data_buff = cau.load_from_single(fname, key)
+        if np.any(data_buff<0):
+            print('WARNING: some negative entities occurs!')
+            inf_mask[data_buff<0] = False
         log_TE = np.log10(data_buff)
         if key in ('TE', 'MI'):
             log_TE += np.log10(2)
