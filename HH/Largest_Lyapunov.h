@@ -60,7 +60,7 @@ double Largest_Lyapunov(long &seed, double dt,double h)
 	int lyapunov_increment = int(1000/dt+0.1);
 
 	m = int(dt / h + 0.1);
-	max_step = int(T_Max / dt + 0.1);/////////////////
+	max_step = int(T_Max / dt + 0.1);
 
 	//t = -1000;
 	//while (t + T_Step_Large <= 0)
@@ -118,7 +118,7 @@ double Largest_Lyapunov(long &seed, double dt,double h)
 
 
 
-			//// to make sure that both reference and perturbed neuron are in or out of refractory period
+			// to make sure that both reference and perturbed neuron are in or out of refractory period
 			int each_pare_in_fine_state = 1;     
 			for (int i = 0; i < N; i++)
 			{
@@ -137,7 +137,7 @@ double Largest_Lyapunov(long &seed, double dt,double h)
 			if (!each_pare_in_fine_state)
 				continue;
 	
-			//// when neuron number is small, we just wait until no neuron in refractory period
+			// when neuron number is small, we just wait until no neuron in refractory period
 			if (Lib_method  && N <= 5)
 			{
 				int all_neu_out_refractory = 1;
@@ -178,7 +178,7 @@ double Largest_Lyapunov(long &seed, double dt,double h)
 
 			}
 
-			for (int i = 0; i < N; i++)           /// modify voltage
+			for (int i = 0; i < N; i++)           // modify voltage
 			{			
 				if (Lib_method )
 				{					
@@ -186,7 +186,7 @@ double Largest_Lyapunov(long &seed, double dt,double h)
 					t_id = int((neu[i].last_fire_time + T_ref) / dt + 1);
 					t_id_per = int((neu_per[i].last_fire_time + T_ref) / dt + 1);
 				
-					if (step == MAX(t_id, t_id_per))         /////////////
+					if (step == MAX(t_id, t_id_per))
 					{
 						int id = i*k;
 						u[id] *= multiply_index[i];

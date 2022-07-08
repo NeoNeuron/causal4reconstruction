@@ -270,12 +270,12 @@ void Record_Power_spectrum(double t)
 	}
 }
 
-void Update_Conductance(double t,struct neuron *a)  //tΪĩ��ʱ��
+void Update_Conductance(double t,struct neuron *a)
 {
 	for (int i = 0; i < N; i++)  // update G_f G_ff
 		for (int j = 0; j < neu[i].Poisson_input_num; j++)
 		{
-			//neu[i].Poisson_input_time[j] = t; // ��У׼
+			//neu[i].Poisson_input_time[j] = t;
 			double dt = t - neu[i].Poisson_input_time[j]; 
 			a[i].G_ff += f[i] * (1 - dt / Sigma_d_E);
 			a[i].G_f += f[i] * dt;
@@ -307,7 +307,7 @@ void Update_Conductance(double t,struct neuron *a)  //tΪĩ��ʱ��
 				fwrite(&s, sizeof(double), 1, FP);
 			}
 
-			//a[k].last_fire_time = t; // ��У׼
+			//a[k].last_fire_time = t;
 			double dt = t - a[k].last_fire_time;	// update G_se G_si	 
 			for (int i = 0; i < N; i++)
 				if (k < NE)
@@ -425,7 +425,7 @@ void Run_model()
 			record_fire_pattern(t);
 		}
 
-		////Build library, trace of V
+		//Build library, trace of V
 		if(library_v_trace && t-t_lib >= 1.0/256)
 		{
 			t_lib = t;

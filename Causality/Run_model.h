@@ -22,7 +22,7 @@ void Find_T_Max(FILE *fp)
 	rewind(fp);
 }
 
-//// read data in (t0, t1]
+// read data in (t0, t1]
 void read_data(FILE *fp, int data_length, double t0, double t1)
 {
 	double s[2];
@@ -48,34 +48,7 @@ void read_data(FILE *fp, int data_length, double t0, double t1)
 	//	rewind(fp);
 }
 
-//void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101 �ֶβ���
-//{
-//	int data_num;
-//
-//	data_num = (data_length - tau) / order[2];
-//
-//	int id_x = order[2] - 1 + tau;
-//	int id_y = order[2] - 1 - 1;
-//
-//	for (int i = 0; i < data_num; i++)
-//	{
-//		int index_x, index_y;
-//
-//		index_x = X[x][id_x];
-//		index_y = X[y][id_y];
-//
-//		for (int j = 1; j < order[0] + 1; j++)
-//			index_x = index_x * 2 + X[x][id_x - j];
-//		for (int j = 1; j < order[1]; j++)
-//			index_y = index_y * 2 + X[y][id_y - j];
-//		z[y*N + x][index_x*m[1] + index_y] += 1.0;
-//
-//		id_x += order[2];
-//		id_y += order[2];
-//	}
-//}
-
-void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101  ��������
+void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101
 {
 	int data_num;
 
@@ -176,8 +149,8 @@ void Run_model()
 		for (int j = 0; j < 2 * m[0] * m[1]; j++)
 			z[i][j] /= L;
 
-	///////////////////// compute TE(x_n+1+tau,x_n+tau,y_n), GC(x_n+1+tau,x_n+tau,y_n) 
-	///////////////////// sum DMI(x_n+1+tau,y_n), CC(x_n+1+tau,y_n)
+	// compute TE(x_n+1+tau,x_n+tau,y_n), GC(x_n+1+tau,x_n+tau,y_n) 
+	// sum DMI(x_n+1+tau,y_n), CC(x_n+1+tau,y_n)
 
 	FP = fopen(output_filename, "wb");
 	if (verbose)
@@ -198,7 +171,7 @@ void Run_model()
 		}
 	}
 
-	////////////////////  reconstruction & kmean	
+	//  reconstruction & kmean	
 	Kmean(TE_2, threshold[0], accuracy[0]);
 	Kmean(GC, threshold[1], accuracy[1]);
 	Kmean(DMI_2, threshold[2], accuracy[2]);

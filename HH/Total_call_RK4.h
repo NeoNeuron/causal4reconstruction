@@ -31,7 +31,7 @@ double total_call_RK4_0(double R)
 
 		//num = (Nu*dt + 1)*T_Max / dt+T_Max*R*(int(T_ref/T_Step_Small-1e-6+1)-int(T_ref/dt-1e-6)*double_count);
 		//num += 2.0*N*R*T_Max + p1*N*R*T_Max*(Nu*dt / 2)\
-		//	+ p1*(N-1)*R*T_Max*(int(dt / T_Step_Small)/2.0-0.5)+ R*T_Max*(int(dt / T_Step_Small) / 2.0 - 0.5);/////////////////
+		//	+ p1*(N-1)*R*T_Max*(int(dt / T_Step_Small)/2.0-0.5)+ R*T_Max*(int(dt / T_Step_Small) / 2.0 - 0.5);
 
 		num = (Nu*dt + 1)*T_Max / dt + T_Max*R*(int(dt/T_Step_Small-1e-6)*(T_ref / dt-1) + 1 + dt/T_Step_Small);
 		num += 2.0*N*R*T_Max + (N - 1)*R*T_Max*(Nu*dt / 2.0 + p1*dt / T_Step_Small / 2.0)\

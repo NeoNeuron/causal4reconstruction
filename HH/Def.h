@@ -91,7 +91,7 @@ struct neuron
 
 	int state;     //1--neu,0--neu_old
 };
-struct neuron *neu;// *neu_old;
+struct neuron *neu;
 
 //-----------------------------------------------------------------------------
 //		Record firing time and voltage

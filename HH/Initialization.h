@@ -119,7 +119,7 @@ void Create_connect_matrix(long& seed)
 		}
 	}
 
-	if (N == 100 && P_c == 0.7)   ////ring structural
+	if (N == 100 && P_c == 0.7)   //ring structural
 	{
 		for (int i = 0; i < N; i++)
 			for (int j = 0; j < N; j++)
@@ -459,7 +459,6 @@ void Initialization(long &seed0,long &seed2)
 
 			neu[i].id_F = 0;
 			neu[i].state = 1;
-			// neu_old[i].state = 0;
 		}
 	}
 	for (int j = 0; j < 1000; j++)

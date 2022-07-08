@@ -118,7 +118,7 @@ void pre_compute(int &n, double *One_D_Ma, double **Ma, int id)
 	{
 		for (int j = k[2]; j < k[3]; j++)
 		{
-			if (Ma[i][j] > 2.0 / L) //// revise
+			if (Ma[i][j] > 2.0 / L) // revise
 			{
 				One_D_Ma[n] = log(Ma[i][j]) / log(10);
 				n++;
@@ -129,7 +129,6 @@ void pre_compute(int &n, double *One_D_Ma, double **Ma, int id)
 }
 
 void K_mean_2(int n, double *te, double &x)    
-///  n ��te����, te �Ѿ�����С�������У�ÿһ�����ݶ������õġ�x ��������λ��
 {
 
 	if (n == 0)
@@ -185,47 +184,6 @@ void K_mean_2(int n, double *te, double &x)
 	}
 }
 
-//void K_mean_2a(int n, double *te, double &x)
-/////  n ��te����, te �Ѿ�����С�������У�ÿһ�����ݶ������õġ�x ��������λ��
-//{
-//	sort(te, te + n);
-//	double sum = 0, sum0 = 0;
-//	double sum_dist, sum_dist0;  // sum of distance
-//	double mean0, mean1;
-//
-//	for (int i = 0; i < n; i++)
-//		sum += te[i];
-//	
-//	sum_dist = 0;
-//	mean1 = sum / n;
-//	for (int i = 0; i < n; i++)
-//		sum_dist += (te[i] - mean1)*(te[i] - mean1);
-//	x = te[0];
-//	
-//
-//	for (int i = 1; i < n; i++)
-//	{
-//		sum0 += te[i - 1];
-//		mean0 = sum0 / i;
-//		mean1 = (sum - sum0) / (n - i);
-//
-//		sum_dist0 = 0;
-//		for (int j = 0; j < i; j++)
-//			sum_dist0 += (te[j] - mean0)*(te[j] - mean0);
-//
-//		for (int j = i; j < n; j++)
-//			sum_dist0 += (te[j] - mean1)*(te[j] - mean1);
-//
-//		if (sum_dist0 < sum_dist)
-//		{
-//			sum_dist = sum_dist0;
-//			x = te[i];
-//		}		
-//	}
-//
-//	x = x - 1e-4;
-//}
-
 void compare(double **connect_matrix, double **Ma, double *x, double &Accuracy)
 {
 	int num = 0;
@@ -275,7 +233,7 @@ void Kmean(double **Ma, double &Threshold, double &Accuracy)
 	read_connect_matrix(connect_matrix, connect_matrix_strength);
 	
 
-	////// classify EE,IE,EI,II (1,2,3,4), 0--only NE or NI
+	// classify EE,IE,EI,II (1,2,3,4), 0--only NE or NI
 	int n;
 	double x[4] = {0};
 	One_D_Ma = new double[N*N];

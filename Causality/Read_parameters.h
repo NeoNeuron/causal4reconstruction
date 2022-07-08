@@ -7,8 +7,8 @@ void Read_parameters(po::variables_map& vm)
 	N = NE + NI;
 	T_Max = vm["T_Max"].as<double>();
 	DT = vm["DT"].as<double>();
-	if (DT <= 1e5)
-		DT = 1e5;
+	// if (DT <= 1e5)
+	// 	DT = 1e5;
 	auto_T_max = vm["auto_T_max"].as<int>();
 
 

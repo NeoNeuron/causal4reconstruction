@@ -1,7 +1,7 @@
 int neu_id[10] = { 88,21,29,11,23,81,80,24,44,85 };
 
 
-///// state pattern, 010100010101
+// state pattern, 010100010101
 void record_fire_pattern(double t)
 {
 	double s[10];
@@ -13,7 +13,7 @@ void record_fire_pattern(double t)
 	fwrite(s, sizeof(double), 10, FP_fire_pattern);
 }
 
-/////// FILE name ffp for fire_pattern 
+// FILE name ffp for fire_pattern 
 //void decide_fire_pattern_name(int trial_id)
 //{
 //	char str[500], c[10];

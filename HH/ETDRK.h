@@ -52,9 +52,11 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 		an[1] = a.m*g[1] + FF[0][1] * (g[1] - 1) / A[1]; //m
 		an[2] = a.h*g[2] + FF[0][2] * (g[2] - 1) / A[2]; //h
 		an[3] = a.n*g[3] + FF[0][3] * (g[3] - 1) / A[3]; //n
-		///////////////////// 1
 
-		Update_neu_G(n, a, t, h / 2); //include a.t=t+dt  �벽���������и�����������
+		// 1
+		//========================================
+
+		Update_neu_G(n, a, t, h / 2); //include a.t=t+dt
 		double I_input;
 		if (I_CONST)
 			I_input = I_const_input;
@@ -77,8 +79,9 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 		bn[1] = a.m*g[1] + FF[1][1] * (g[1] - 1) / A[1]; //m
 		bn[2] = a.h*g[2] + FF[1][2] * (g[2] - 1) / A[2]; //h
 		bn[3] = a.n*g[3] + FF[1][3] * (g[3] - 1) / A[3]; //n
-		////////////////////// 2
 
+		// 2
+		//========================================
 		if (I_CONST)
 			I_input = I_const_input;
 		else
@@ -100,10 +103,10 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 		cn[1] = an[1] * g[1] + (2 * FF[2][1] - FF[0][1]) * (g[1] - 1) / A[1]; //m
 		cn[2] = an[2] * g[2] + (2 * FF[2][2] - FF[0][2]) * (g[2] - 1) / A[2]; //h
 		cn[3] = an[3] * g[3] + (2 * FF[2][3] - FF[0][3]) * (g[3] - 1) / A[3]; //n
-		/////////////////////  3
 
-
-		Update_neu_G(n, a, t + h / 2, h / 2); //include a.t=t+dt  �벽���������и�����������   
+		//  3
+		//========================================
+		Update_neu_G(n, a, t + h / 2, h / 2); //include a.t=t+dt
 		if (I_CONST)
 			I_input = I_const_input;
 		else
@@ -120,8 +123,9 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 
 		for (int i = 0; i < 4; i++)
 			FF[3][i] = F[3][i] - A[i] * cn[i];
-		////////////////////   4
 
+		//   4
+		//========================================
 		for (int i = 0; i < 4; i++)
 			g[i] = g[i] * g[i];     //exp(A*h)
 
@@ -159,7 +163,7 @@ void Update_ETDRK4(int n, struct neuron &a, double t, double dt)
 		a.m = a.m*g[1] + FF[0][1] * gm[1][0] + (FF[1][1] + FF[2][1])*gm[1][1] + FF[3][1] * gm[1][2];
 		a.h = a.h*g[2] + FF[0][2] * gm[2][0] + (FF[1][2] + FF[2][2])*gm[2][1] + FF[3][2] * gm[2][2];
 		a.n = a.n*g[3] + FF[0][3] * gm[3][0] + (FF[1][3] + FF[2][3])*gm[3][1] + FF[3][3] * gm[3][2];
-		a.t = t + dt;      // �벽���������и�����������, ���¼���
+		a.t = t + dt;
 
 		if (I_CONST)
 			a.I_input = I_const_input;

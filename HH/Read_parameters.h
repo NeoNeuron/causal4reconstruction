@@ -40,7 +40,7 @@ void Read_parameters(po::variables_map& vm)
         printf("f = (E : %.3lf, I : %.3lf)\n", fE, fI);
 	}
 
-  // CS
+	// CS
 	if (full_toggle) {
         vector<double> conn_buff;
         str2vec(vm["conn_matrix"].as<string>(), conn_buff);
@@ -83,7 +83,7 @@ void Read_parameters(po::variables_map& vm)
     strcpy(fi_neu_state, vm["state_path"].as<string>().c_str());
     strcpy(save_mode, vm["save_mode"].as<string>().c_str());
 
-  // if no neu_state_file
+	// if no neu_state_file
 	if ((fi_neu_state == NULL || fi_neu_state[0] == '\0') && strcmp(save_mode, "w")) {
 		WARNING("WARNING: no fi_neu_state provided! Force save_mode to 'w'.\n");
     strcpy(save_mode, "w");
