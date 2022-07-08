@@ -10,9 +10,9 @@ plt.rcParams['axes.labelsize'] = 18
 
 # setup line colors
 line_rc = {
-    'CC':{'color':'#008000', 'lw':3, 'label':'$\Sigma$TDCC$^2$'},
-    'MI':{'color':'#FF0000', 'lw':2, 'label':'$2\Sigma$TDMI'},
-    'GC':{'color':'#FFA500', 'lw':2, 'label':'GC'},
+    'CC':{'color':'#008000', 'lw':4, 'label':'$\Sigma$TDCC$^2$'},
+    'MI':{'color':'#FF0000', 'lw':3, 'label':'$2\Sigma$TDMI'},
+    'GC':{'color':'#FFA500', 'lw':3, 'label':'GC'},
     'TE':{'color':'#4141C2', 'lw':2, 'label':'2TE'},
 }
 c_inv = {
