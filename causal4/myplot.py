@@ -12,6 +12,20 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import warnings
 warnings.filterwarnings('ignore')
 
+def get_conn_fpath(pm_causal):
+    N = pm_causal['Ne']+pm_causal['Ni']
+    fname_conn = pm_causal['path_output']
+    if pm_causal['Ne']*pm_causal['Ni'] > 0:
+        fname_conn += f"EI/N={N:d}/"
+    elif pm_causal['Ne'] > 0:
+        fname_conn += f"EE/N={N:d}/"
+    elif pm_causal['Ni'] > 0:
+        fname_conn += f"II/N={N:d}/"
+    else:
+        raise ValueError('No neuron!')
+    fname_conn += pm_causal['con_mat']
+    return fname_conn
+
 def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
     """Histogram of causality masked by ground truth.
 
@@ -21,12 +35,12 @@ def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
     """
 
     N = pm_causal['Ne']+pm_causal['Ni']
-    fname_conn = pm_causal['path_output']+f"EE/N={N:d}/" + pm_causal['con_mat']
+    fname_conn = get_conn_fpath(pm_causal)
     conn = np.fromfile(fname_conn, dtype=float
         )[:int(N*N)].reshape(N,N).astype(bool)
     fname = pm_causal['fname']
     causal_dtype = fname.split('=')[0][:-1]
-    cau = CausalityIO(dtype=causal_dtype, N=N, **pm_causal)
+    cau = CausalityIO(dtype=causal_dtype, N=(pm_causal['Ne'], pm_causal['Ni']), **pm_causal)
 
     fig, ax = plt.subplots(1,2,figsize=(10,4))
     ths = cau.load_from_single(fname, 'th')
@@ -107,7 +121,7 @@ def hist_dp(pm_causal:dict)->None:
     N = pm_causal['Ne']+pm_causal['Ni']
     fname = pm_causal['fname']
     causal_dtype = fname.split('=')[0][:-1]
-    cau = CausalityIO(dtype=causal_dtype, N=N, **pm_causal)
+    cau = CausalityIO(dtype=causal_dtype, N=(pm_causal['Ne'], pm_causal['Ni']), **pm_causal)
     fig, ax = plt.subplots(1,1,figsize=(5,4))
     inf_mask = ~np.eye(N, dtype=bool)
     for var, label in zip(('Delta_p', 'dp'), (r'$\Delta p_m$', r'$\delta p$')):
@@ -139,12 +153,12 @@ def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
     """
 
     N = pm_causal['Ne']+pm_causal['Ni']
-    fname_conn = pm_causal['path_output']+f"EE/N={N:d}/" + pm_causal['con_mat']
+    fname_conn = get_conn_fpath(pm_causal)
     conn = np.fromfile(fname_conn, dtype=float
         )[:int(N*N)].reshape(N,N).astype(bool)
     fname = pm_causal['fname']
     causal_dtype = fname.split('=')[0][:-1]
-    cau = CausalityIO(dtype=causal_dtype, N=N, **pm_causal)
+    cau = CausalityIO(dtype=causal_dtype, N=(pm_causal['Ne'], pm_causal['Ni']), **pm_causal)
 
     fig, ax = plt.subplots(1,2,figsize=(10,4))
     ths = cau.load_from_single(fname, 'th')

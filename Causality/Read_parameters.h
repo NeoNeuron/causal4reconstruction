@@ -58,9 +58,9 @@ void Output_filename()
 
 	strcat(str, "bin="), sprintf(ch, "%0.2f", bin), strcat(str, ch);
 	strcat(str, "delay="), sprintf(ch, "%0.2f", delay), strcat(str, ch);
+	strcat(str, "T="), sprintf(ch, "%0.0e", T_Max), strcat(str, ch);
 	strcat(str, "-"), strcat(str, input_filename);
 
-	//strcat(str, "T="), sprintf(ch, "%0.0e", T_Max), strcat(str, ch);
 	//strcat(str, "T"), sprintf(ch, "%d", int(T_Max / DT + 0.5)), strcat(str, ch);
 	strcat(str, ".dat");
 
