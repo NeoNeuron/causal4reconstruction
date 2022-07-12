@@ -107,7 +107,7 @@ void out_put_filename()
 	ode_type = 2;
 	IntOrd = 1;
 	method = 3;
-	T_step = 0.2;
+	// T_step = 0.2;
 	Power_spectrum = 0;
 	Estimate_RK4_call = 0;
 	RecordFP = 0;

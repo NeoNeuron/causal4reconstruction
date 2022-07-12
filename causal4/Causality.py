@@ -5,7 +5,7 @@
 import numpy as np
 import os
 
-def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float, 
+def get_fname(dtype:str, midterm:str, T:float, order:tuple, bin:float, delay:float, 
     spk_fname:str, p:float=None, s:float=None, f:float=None, u:float=None,
     **kwargs)->str:
     """Generate filename of causal values.
@@ -13,6 +13,7 @@ def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float,
     Args:
         dtype (str): type of dynamical systems.
         midterm (str): midterm of path of data files.
+        T (float): time duration of recorded data.
         order (tuple): conditional order in causal measures, (k, l)
         bin (float): bin size for binarization of spike trains
         delay (float): delay length, m.
@@ -30,7 +31,7 @@ def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float,
     for kw in ('LN-', 'U-', 'G-', 'E-'):
         DIRPATH=DIRPATH.replace(kw, '')
     prefix = f"TGIC2.0-K={order[0]:d}_{order[1]:d}" \
-        + f"bin={bin:.2f}delay={delay:.2f}-"
+        + f"bin={bin:.2f}delay={delay:.2f}T={T:.2e}-"
     if spk_fname is not None:
         spk_name_new = spk_fname[:-4] if spk_fname.endswith('.dat') else spk_fname
     else:
@@ -59,7 +60,7 @@ class CausalityIO(object):
     # dat[11+order] : approx for 2*\sum{TDMI}
     # y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. 
 
-    def __init__(self, dtype, N=2,order=(1,1), bin=0.5, delay=0, **kwargs) -> None:
+    def __init__(self, dtype, N=2, T=1e5, order=(1,1), bin=0.5, delay=0, **kwargs) -> None:
 
         self.dtype=dtype
         if isinstance(N, tuple):
@@ -77,6 +78,7 @@ class CausalityIO(object):
         else:
             self.N=N
             self.midterm = f"data/EE/N={self.N:d}/"
+        self.T = T
         self._order=order
         self.bin=bin
         self.delay=delay
@@ -141,6 +143,7 @@ class CausalityIO(object):
         pm_buff = dict(
             dtype=self.dtype, 
             midterm=self.midterm, 
+            T=self.T,
             order=self.order,
             bin=self.bin,
             delay=self.delay,
@@ -242,6 +245,7 @@ class CausalityAPI(CausalityIO):
         pm_buff = dict(
             dtype=self.dtype, 
             midterm=self.midterm, 
+            T=self.T,
             order=self.order,
             bin=self.bin,
             delay=self.delay,
@@ -283,8 +287,9 @@ class CausalityAPI3(CausalityAPI):
                 pm_buff[key] = kwargs[key]
         return f"./{pm_buff['dtype']:s}/"+pm_buff['midterm'] \
                + f"TGIC2.0-K={pm_buff['order'][0]:d}_{pm_buff['order'][1]:d}" \
-               + f"bin={pm_buff['bin']:.2f}delay={pm_buff['delay']:.2f}-{pm_buff['dtype']:s}" \
-               + f"p={pm_buff['p']:.2f}s={pm_buff['s1']:.3f}s={pm_buff['s2']:.3f}" \
+               + f"bin={pm_buff['bin']:.2f}delay={pm_buff['delay']:.2f}T={pm_buff['T']:.2e}-" \
+               + f"{pm_buff['dtype']:s}p={pm_buff['p']:.2f}" \
+               + f"s={pm_buff['s1']:.3f}s={pm_buff['s2']:.3f}" \
                + f"f={pm_buff['f']:.3f}u={pm_buff['u']:.3f}.dat"
 
     
@@ -405,7 +410,7 @@ def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30):
     else:
         raise ValueError('No neuron!')
     for val in delay:
-        fname_buff = get_fname(dtype, midterm, spk_fname=spk_fname, delay=val, **pm)
+        fname_buff = get_fname(dtype, midterm, pm['T'], spk_fname=spk_fname, delay=val, **pm)
         if not os.path.isfile(fname_buff):
             # print('[WARNING]: ' + fname_buff + ' not exist.')
             delay_not_gen.append(val)

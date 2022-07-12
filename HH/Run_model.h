@@ -366,7 +366,7 @@ void Run_model()
 			printf("Time cost is %0.2f s, run time is %0.2f s\n", double(te - ts0) / CLOCKS_PER_SEC, t);
 		}
 
-		if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - last_record_t >= 0.5-1e-5) // for library method
+		if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - last_record_t >= 0.2-1e-5) // for library method
 		{
 			last_record_t = t;
 			fwrite(&t, sizeof(double), 1, FP1);
