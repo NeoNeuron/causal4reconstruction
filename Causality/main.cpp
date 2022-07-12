@@ -13,7 +13,6 @@
 #include "Kmean.h" 
 #include "Compute_Causality.h"
 #include "Run_model.h"
-#include <fstream>
 
 int main(int argc, char **argv)
 {

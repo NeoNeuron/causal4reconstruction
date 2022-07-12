@@ -20,7 +20,6 @@
 #include "Run_model.h"
 #include "Largest_Lyapunov.h"
 #include "Delete.h"
-#include <fstream>
 
 int main(int argc,char **argv) {
 	long seed, seed0, seed1, seed2;

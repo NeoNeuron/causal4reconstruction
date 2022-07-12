@@ -11,6 +11,7 @@
 #include <malloc.h>
 #include <omp.h>
 #include <algorithm>
+#include <fstream>
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
