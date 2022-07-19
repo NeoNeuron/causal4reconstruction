@@ -5,19 +5,19 @@
 import numpy as np
 import os
 
-def get_fname(dtype:str, midterm:str, T:float, order:tuple, bin:float, delay:float, 
-    spk_fname:str, p:float=None, s:float=None, f:float=None, u:float=None,
-    **kwargs)->str:
+def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float, 
+              spk_fname:str, T:float=None, p:float=None, s:float=None, 
+              f:float=None, u:float=None, **kwargs)->str:
     """Generate filename of causal values.
 
     Args:
         dtype (str): type of dynamical systems.
         midterm (str): midterm of path of data files.
-        T (float): time duration of recorded data.
         order (tuple): conditional order in causal measures, (k, l)
         bin (float): bin size for binarization of spike trains
         delay (float): delay length, m.
         spk_fname (str): filename of spike trains.
+        T (float): time duration of recorded data.
         p (float, optional): wiring probability of network. Defaults to None.
         s (float, optional): coupling strength. Defaults to None.
         f (float, optional): FFWD Poisson strength. Defaults to None.
@@ -31,7 +31,10 @@ def get_fname(dtype:str, midterm:str, T:float, order:tuple, bin:float, delay:flo
     for kw in ('LN-', 'U-', 'G-', 'E-'):
         DIRPATH=DIRPATH.replace(kw, '')
     prefix = f"TGIC2.0-K={order[0]:d}_{order[1]:d}" \
-        + f"bin={bin:.2f}delay={delay:.2f}T={T:.2e}-"
+        + f"bin={bin:.2f}delay={delay:.2f}"
+    if T is not None:
+        prefix += "T={T:.2e}"
+    prefix += "-"
     if spk_fname is not None:
         spk_name_new = spk_fname[:-4] if spk_fname.endswith('.dat') else spk_fname
     else:
@@ -60,7 +63,8 @@ class CausalityIO(object):
     # dat[11+order] : approx for 2*\sum{TDMI}
     # y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. 
 
-    def __init__(self, dtype, N=2, T=1e5, order=(1,1), bin=0.5, delay=0, **kwargs) -> None:
+    def __init__(self, dtype, N=2, order=(1,1), bin=0.5, delay=0, 
+                 T=None, **kwargs) -> None:
 
         self.dtype=dtype
         if isinstance(N, tuple):
@@ -194,11 +198,11 @@ class CausalityAPI(CausalityIO):
     # dat[11+order] : approx for 2*\sum{TDMI}
     # y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. 
 
-    def __init__(self, dtype='HH', N=2,
-        order=(1,1), bin=0.5, delay=0, p=0.25, s=0.1,
-        f=0.1, u=0.1, **kwargs) -> None:
+    def __init__(self, dtype='HH', N=2, order=(1,1), bin=0.5,
+                 delay=0, T=None, p=0.25, s=0.1,
+                 f=0.1, u=0.1, **kwargs) -> None:
 
-        super().__init__(dtype, N, order, bin, delay)
+        super().__init__(dtype=dtype, N=N, order=order, bin=bin, delay=delay, T=T)
         self.p=p
         self.s=s
         self.f=f
@@ -264,8 +268,10 @@ class CausalityAPI(CausalityIO):
 
 # %%
 class CausalityAPI3(CausalityAPI):
-    def __init__(self, dtype, N, order, bin, delay, p, s1, s2, f, u, **kwargs) -> None:
-        super().__init__(dtype=dtype, N=N, order=order, bin=bin, delay=delay, p=p, s=s1, f=f, u=u, **kwargs)
+    def __init__(self, dtype, N, order, bin, delay, 
+                 T, p, s1, s2, f, u, **kwargs) -> None:
+        super().__init__(dtype=dtype, N=N, order=order, bin=bin, delay=delay, 
+                         T=T, p=p, s=s1, f=f, u=u, **kwargs)
         self.s1 = s1
         self.s2 = s2
     
@@ -276,6 +282,7 @@ class CausalityAPI3(CausalityAPI):
             order=self.order,
             bin=self.bin,
             delay=self.delay,
+            T=self.T,
             p=self.p,
             s1=self.s1,
             s2=self.s2,
