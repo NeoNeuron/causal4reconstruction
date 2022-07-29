@@ -33,7 +33,7 @@ def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float,
     prefix = f"TGIC2.0-K={order[0]:d}_{order[1]:d}" \
         + f"bin={bin:.2f}delay={delay:.2f}"
     if T is not None:
-        prefix += "T={T:.2e}"
+        prefix += f"T={T:.2e}"
     prefix += "-"
     if spk_fname is not None:
         spk_name_new = spk_fname[:-4] if spk_fname.endswith('.dat') else spk_fname

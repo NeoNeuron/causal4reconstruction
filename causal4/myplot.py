@@ -216,9 +216,13 @@ def hist_dp(pm_causal:dict)->None:
     ax.set_xticklabels([r'$10^{%.1f}$'%val for val in xticks])
     ax.set_xlabel(r'$\Delta p_m$ or $\delta_p$ values')
     ax.set_ylabel('Probability density')
+    ax.axvline(0, ls='--', color='r')
     plt.tight_layout()
 
-    fig.savefig('image/'+f"histogram_of_dp_Delta_p_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
+    if 'T' in pm_causal:
+        fig.savefig('image/'+f"histogram_of_dp_Delta_p_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
+    else:
+        fig.savefig('image/'+f"histogram_of_dp_Delta_p_bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
 
 
 def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
