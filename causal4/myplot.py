@@ -188,7 +188,7 @@ def hist_causal_with_conn_mask_linear(pm_causal:dict, hist_range:tuple=None)->No
 
     fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
 
-def hist_dp(pm_causal:dict)->None:
+def hist_dp(pm_causal:dict, hist_range:tuple=None)->None:
     """Histogram of Delta pm and dp without masking.
 
     Args:
@@ -206,14 +206,15 @@ def hist_dp(pm_causal:dict)->None:
         data_var = np.log10(np.abs(data_var[inf_mask]))
         counts, bins = np.histogram(
             data_var[~np.isinf(data_var)*(~np.isnan(data_var))], 
-            bins=100, density=True)
+            bins=100, density=True, range=hist_range)
         ax.plot(bins[:-1], counts, label=label)
         ax.legend()
     ax.set_ylim(0)
     xticks = ax.get_xticks()
-    ax.set_xlim(xticks[0],xticks[-1])
     ax.set_xticks(xticks)
-    ax.set_xticklabels([r'$10^{%.1f}$'%val for val in xticks])
+    if hist_range is not None:
+        ax.set_xlim(*hist_range)
+    ax.set_xticklabels([r'$10^{%.0f}$'%val for val in xticks])
     ax.set_xlabel(r'$\Delta p_m$ or $\delta_p$ values')
     ax.set_ylabel('Probability density')
     ax.axvline(0, ls='--', color='r')
