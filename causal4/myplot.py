@@ -249,8 +249,11 @@ def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
     inf_mask = ~np.eye(N, dtype=bool)
     if hist_range is None:
         # determine histogram value range
-        data_buff = cau.load_from_single(fname, 'TE')[inf_mask]
-        data_buff = np.log10(data_buff)
+        data_buff = cau.load_from_single(fname, 'TE')
+        if np.any(data_buff[inf_mask]<=0):
+            print('WARNING: some negative entities occurs!')
+            inf_mask[data_buff<=0] = False
+        data_buff = np.log10(data_buff[inf_mask])
         hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
 
     for counter, key in enumerate(('CC', 'MI', 'GC', 'TE')):
@@ -258,6 +261,9 @@ def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
         log_TE = np.log10(data_buff)
         if key in ('TE', 'MI'):
             log_TE += np.log10(2)
+        if np.any(data_buff[inf_mask]<=0):
+            print('WARNING: some negative entities occurs!')
+            inf_mask[data_buff<=0] = False
         log_TE_buffer = log_TE[inf_mask]
         # log_TE_buffer = log_TE_buffer[~np.isinf(log_TE_buffer)*~np.isnan(log_TE_buffer)]
         counts, bins = np.histogram(log_TE_buffer, bins=100, range=hist_range,density=True)
