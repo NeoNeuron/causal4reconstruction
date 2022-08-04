@@ -417,7 +417,7 @@ def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30):
     else:
         raise ValueError('No neuron!')
     for val in delay:
-        fname_buff = get_fname(dtype, midterm, pm['T'], spk_fname=spk_fname, delay=val, **pm)
+        fname_buff = get_fname(dtype, midterm, spk_fname=spk_fname, delay=val, **pm)
         if not os.path.isfile(fname_buff):
             # print('[WARNING]: ' + fname_buff + ' not exist.')
             delay_not_gen.append(val)

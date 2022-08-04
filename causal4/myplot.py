@@ -3,12 +3,17 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from .Causality import CausalityIO
+from .Causality import CausalityIO, CausalityAPI
 from .figrc import line_rc
+from .utils import Gaussian, Double_Gaussian_Analysis
 plt.rcParams['axes.spines.top']=False
 plt.rcParams['axes.spines.right']=False
 from sklearn.metrics import roc_auc_score, roc_curve
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.ticker import FuncFormatter, MaxNLocator
+@FuncFormatter
+def sci_formatter(x, pos):
+    return r'$10^{%d}$'%x
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -25,6 +30,20 @@ def get_conn_fpath(pm_causal):
         raise ValueError('No neuron!')
     fname_conn += pm_causal['con_mat']
     return fname_conn
+
+def format_xticks(ax, hist_range):
+    ax.set_xlim(hist_range[0], hist_range[-1])
+    if hist_range[-1]-hist_range[0]<=5:
+        xticks = np.arange(hist_range[0], hist_range[-1]+1)
+        ax.set_xticks(xticks)
+    else:
+        if hist_range[0] % 2:
+            xticks = np.arange(hist_range[0]+1, hist_range[-1]+2)
+        else:
+            xticks = np.arange(hist_range[0], hist_range[-1]+1)
+        ax.set_xticks(xticks[::2])
+    ax.xaxis.set_major_formatter(sci_formatter)
+
 
 def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
     """Histogram of causality masked by ground truth.
@@ -58,10 +77,10 @@ def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
         zero_mask = conn_weight>0
         if 'LN-' in causal_dtype:
             axins.hist(np.log10(conn_weight[inf_mask*zero_mask]), bins=40)
-            axins.set_xticklabels([r'$10^{%d}$'%val for val in axins.get_xticks()], fontsize=12)
+            axins.xaxis.set_major_formatter(sci_formatter)
         else:
             axins.hist(conn_weight[inf_mask*zero_mask], bins=40)
-            axins.set_xticklabels(axins.get_xticks(), fontsize=12)
+        axins.set_xticklabels(axins.get_xticks(), fontsize=12)
         axins.set_title('Structural Conn', fontsize=12)
         axins.set_yticks([])
 
@@ -95,10 +114,7 @@ def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
     ax[0].set_ylabel('Probability distribution')
     ax[0].set_xlabel('Causal value')
     ax[0].set_ylim(0)
-    xticks = np.arange(hist_range[0], hist_range[-1]+1)
-    ax[0].set_xticks(xticks[::2])
-    ax[0].set_xlim(xticks[0], xticks[-1])
-    ax[0].set_xticklabels([r'$10^{%d}$'%val for val in xticks[::2]])
+    format_xticks(ax[0], hist_range)
     ax[1].legend()
     ax[1].set_ylabel('True Positive Rate')
     ax[1].set_xlabel('True Negative Rate')
@@ -108,7 +124,7 @@ def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
     ax[1].set_ylim(0,1)
     plt.tight_layout()
 
-    fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
+    fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
 
 
 def hist_causal_with_conn_mask_linear(pm_causal:dict, hist_range:tuple=None)->None:
@@ -143,10 +159,10 @@ def hist_causal_with_conn_mask_linear(pm_causal:dict, hist_range:tuple=None)->No
         zero_mask = conn_weight>0
         if 'LN-' in causal_dtype:
             axins.hist(np.log10(conn_weight[inf_mask*zero_mask]), bins=40)
-            axins.set_xticklabels([r'$10^{%d}$'%val for val in axins.get_xticks()], fontsize=12)
+            axins.xaxis.set_major_formatter(sci_formatter)
         else:
             axins.hist(conn_weight[inf_mask*zero_mask], bins=40)
-            axins.set_xticklabels(axins.get_xticks(), fontsize=12)
+        axins.set_xticklabels(axins.get_xticks(), fontsize=12)
         axins.set_title('Structural Conn', fontsize=12)
         axins.set_yticks([])
 
@@ -186,7 +202,7 @@ def hist_causal_with_conn_mask_linear(pm_causal:dict, hist_range:tuple=None)->No
     ax[1].set_ylim(0,1)
     plt.tight_layout()
 
-    fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
+    fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
 
 def hist_dp(pm_causal:dict, hist_range:tuple=None)->None:
     """Histogram of Delta pm and dp without masking.
@@ -210,20 +226,18 @@ def hist_dp(pm_causal:dict, hist_range:tuple=None)->None:
         ax.plot(bins[:-1], counts, label=label)
         ax.legend()
     ax.set_ylim(0)
-    xticks = ax.get_xticks()
-    ax.set_xticks(xticks)
     if hist_range is not None:
         ax.set_xlim(*hist_range)
-    ax.set_xticklabels([r'$10^{%.0f}$'%val for val in xticks])
+    ax.xaxis.set_major_formatter(sci_formatter)
     ax.set_xlabel(r'$\Delta p_m$ or $\delta_p$ values')
     ax.set_ylabel('Probability density')
     ax.axvline(0, ls='--', color='r')
     plt.tight_layout()
 
     if 'T' in pm_causal:
-        fig.savefig('image/'+f"histogram_of_dp_Delta_p_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
+        fig.savefig('image/'+f"histogram_of_dp_Delta_p_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
     else:
-        fig.savefig('image/'+f"histogram_of_dp_Delta_p_bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
+        fig.savefig('image/'+f"histogram_of_dp_Delta_p_bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
 
 
 def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
@@ -275,10 +289,7 @@ def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
     ax[0].set_ylabel('Probability distribution')
     ax[0].set_xlabel('Causal value')
     ax[0].set_ylim(0)
-    xticks = np.arange(hist_range[0], hist_range[-1]+1)
-    ax[0].set_xticks(xticks[::2])
-    ax[0].set_xlim(xticks[0], xticks[-1])
-    ax[0].set_xticklabels([r'$10^{%d}$'%val for val in xticks[::2]])
+    format_xticks(ax[0], hist_range)
     ax[1].legend()
     ax[1].set_ylabel('True Positive Rate')
     ax[1].set_xlabel('True Negative Rate')
@@ -288,8 +299,7 @@ def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
     ax[1].set_ylim(0,1)
     plt.tight_layout()
 
-    fig.savefig('image/'+f"histogram_of_causal_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
-
+    fig.savefig('image/'+f"histogram_of_causal_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
 
 def hist_causal_linear(pm_causal:dict, hist_range:tuple=None)->None:
     """Histogram of causality without masking.
@@ -343,4 +353,111 @@ def hist_causal_linear(pm_causal:dict, hist_range:tuple=None)->None:
     ax[1].set_ylim(0,1)
     plt.tight_layout()
 
-    fig.savefig('image/'+f"histogram_of_causal_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}_{fname:s}.pdf")
+    fig.savefig('image/'+f"histogram_of_causal_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
+
+def hist_causal_blind(pm_causal, hist_range:tuple=None, fit_p0 = None, return_data=False):
+    # ====================
+    # Draw histogram of causal values
+    # ====================
+    N = int(pm_causal['Ne'] + pm_causal['Ni'])
+    fname = pm_causal['fname']
+    cau = CausalityAPI(dtype=pm_causal['path_input'].split('/')[-3], N=N, **pm_causal)
+    fig, ax = plt.subplots(1,1, figsize=(8,7))
+    causal_values = {key: np.zeros(N*N-N) for key in ('TE', 'GC', 'MI', 'CC')}
+    th_conditions = {}
+    fig_data = {'roc':{}, 'hist': {}, 'hist_inconsist': {}}
+    log_norm_fit_pval = {}
+
+    inf_mask = ~np.eye(N, dtype=bool)
+    if hist_range is None:
+        # determine histogram value range
+        data_buff = cau.load_from_single(fname, 'TE')
+        if np.any(data_buff[inf_mask]<=0):
+            print('WARNING: some negative entities occurs!')
+            inf_mask[data_buff<=0] = False
+        data_buff = np.log10(data_buff[inf_mask])
+        hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
+
+    ax_hist = inset_axes(ax, width="100%", height="100%",
+                bbox_to_anchor=(.20, .20, .80, .40),
+                bbox_transform=ax.transAxes, loc='center', axes_kwargs={'facecolor':[1,1,1,0]})
+    ax_hist.spines['left'].set_visible(False)
+    ax_hist.xaxis.set_major_locator(MaxNLocator(4, integer=True))
+    ax_hist.xaxis.set_major_formatter(sci_formatter)
+    fname_conn = pm_causal['path_output']+f"EE/N={N:d}/" + pm_causal['con_mat']
+    conn = np.fromfile(fname_conn, dtype=float
+    )[:int(N*N)].reshape(N,N).astype(bool)
+
+    # plot the distribution of connectivity weight
+    conn_weight = np.fromfile(fname_conn, dtype=float)[int(N*N):]
+    if conn_weight.shape[0] > 0:
+        conn_weight= conn_weight.reshape(N,N)
+        axins = inset_axes(ax, width="100%", height="100%",
+                    bbox_to_anchor=(.05, .40, .45, .3),
+                    bbox_transform=ax.transAxes, loc='center',)
+        axins.spines['left'].set_visible(False)
+
+        zero_mask = conn_weight>0
+        axins.hist(conn_weight[inf_mask*zero_mask], bins=40)
+        axins.set_title('Structural Conn', fontsize=12)
+        axins.set_yticks([])
+
+    data_var = cau.load_from_single(fname, 'Delta_p')
+    data_var = np.log10(np.abs(data_var))
+    data_var_mask = (~np.isinf(data_var))*(~np.isnan(data_var))*((data_var<0)+(data_var>0))
+    acc = ppv = 0.
+    for key in ('CC', 'MI', 'GC', 'TE'):
+        data_buff = cau.load_from_single(fname, key)
+        causal_values[key] = data_buff[~np.eye(data_buff.shape[0], dtype=bool)].flatten()
+        log_cau = np.log10(data_buff)
+        if key in ('TE', 'MI'):
+            log_cau += np.log10(2)
+        counts, bins = np.histogram(log_cau[data_var_mask], bins=100, range=hist_range, density=True)
+        fig_data['hist'][key] = counts.copy()
+        if fit_p0 is None:
+            popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts, bins)
+        else:
+            popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts, bins, p0=fit_p0)
+        # ax_hist.plot(bins[:-1], Double_Gaussian(bins[:-1], *popt), lw=4, ls=':', color=line_rc[key]['color'], )
+        ax_hist.plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
+        ax_hist.plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
+        ax_hist.plot(bins[:-1], counts, lw=line_rc[key]['lw'], color=line_rc[key]['color'], label=line_rc[key]['label'])
+        ax_hist.axvline(threshold, ymax=0.75, color=line_rc[key]['color'], ls='--')
+        # plot double Gaussian based ROC
+        ax.plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=line_rc[key]['label'])[0].set_clip_on(False)
+        print(f"{key:s}: {-np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2):.3f}", end='\t')
+
+        log_norm_fit_pval[key] = popt
+        th_conditions[key] = threshold
+        fig_data['roc'][key] = np.vstack((fpr, tpr))
+
+        # calculate reconstruction accuracy
+        conn_recon = log_cau >= threshold
+        recon = np.logical_xor(conn[inf_mask], conn_recon[inf_mask])
+        acc += 100-100*recon.sum()/len(recon)
+        ppv += 100*(conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+
+    # print acc, 
+    ax.text(0.6, 0.90, f"acc={acc/4.:.2f}%", fontsize=18, transform=ax.transAxes)
+    ax.text(0.6, 0.83, f"ppv={ppv/4.:.2f}%", fontsize=18, transform=ax.transAxes)
+
+    format_xticks(ax_hist, hist_range)
+    print('')
+    ax_hist.set_ylim(0)
+    ax.legend(loc='upper left', fontsize=14)
+
+    ax_hist.set_yticks([])
+    ax_hist.set_xlabel('Causal value')
+    ax.set_xlim(0,1)
+    ax.set_ylim(0,1)
+    ax.set_ylabel('True Positive Rate', fontsize=30)
+    ax.set_xlabel('False Positive Rate', fontsize=30)
+
+    fig_data['edges'] = bins[:-1].copy()
+    fig_data['log_norm_fit_pval'] = log_norm_fit_pval
+    fig_data['opt_th'] = th_conditions
+
+    plt.tight_layout()
+    fig.savefig(f"image/histogram_of_causal_blind_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
+    if return_data:
+        return fig_data
