@@ -55,8 +55,8 @@ def roc_formatter(ax:plt.Axes)->plt.Axes:
     ax.set_xticklabels(['0','0.5','1'])
     ax.set_yticks([0,0.5,1])
     ax.set_yticklabels(['0','0.5','1'])
-    ax.set_xlabel('False positive rate')
-    ax.set_ylabel('True positive rate')
+    ax.set_xlabel('false positive rate')
+    ax.set_ylabel('true positive rate')
 
     # make right and top axis invisible
     ax.spines['top'].set_visible(False)
