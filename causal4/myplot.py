@@ -4,7 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from .Causality import CausalityIO, CausalityAPI
-from .figrc import line_rc
+from .figrc import line_rc, roc_formatter
 from .utils import Gaussian, Double_Gaussian_Analysis
 plt.rcParams['axes.spines.top']=False
 plt.rcParams['axes.spines.right']=False
@@ -116,12 +116,7 @@ def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
     ax[0].set_ylim(0)
     format_xticks(ax[0], hist_range)
     ax[1].legend()
-    ax[1].set_ylabel('True Positive Rate')
-    ax[1].set_xlabel('True Negative Rate')
-    ax[1].set_xticks([0,0.5,1])
-    ax[1].set_yticks([0,0.5,1])
-    ax[1].set_xlim(0,1)
-    ax[1].set_ylim(0,1)
+    ax[1]=roc_formatter(ax[1])
     plt.tight_layout()
 
     fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
@@ -194,12 +189,7 @@ def hist_causal_with_conn_mask_linear(pm_causal:dict, hist_range:tuple=None)->No
     ax[0].set_ylim(0)
     ax[0].ticklabel_format(style='sci', scilimits=(0,0), axis='x')
     ax[1].legend()
-    ax[1].set_ylabel('True Positive Rate')
-    ax[1].set_xlabel('True Negative Rate')
-    ax[1].set_xticks([0,0.5,1])
-    ax[1].set_yticks([0,0.5,1])
-    ax[1].set_xlim(0,1)
-    ax[1].set_ylim(0,1)
+    ax[1]=roc_formatter(ax[1])
     plt.tight_layout()
 
     fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
@@ -291,12 +281,7 @@ def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
     ax[0].set_ylim(0)
     format_xticks(ax[0], hist_range)
     ax[1].legend()
-    ax[1].set_ylabel('True Positive Rate')
-    ax[1].set_xlabel('True Negative Rate')
-    ax[1].set_xticks([0,0.5,1])
-    ax[1].set_yticks([0,0.5,1])
-    ax[1].set_xlim(0,1)
-    ax[1].set_ylim(0,1)
+    ax[1]=roc_formatter(ax[1])
     plt.tight_layout()
 
     fig.savefig('image/'+f"histogram_of_causal_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
@@ -345,12 +330,7 @@ def hist_causal_linear(pm_causal:dict, hist_range:tuple=None)->None:
     ax[0].set_ylim(0)
     ax[0].ticklabel_format(style='sci', scilimits=(0,0), axis='both')
     ax[1].legend()
-    ax[1].set_ylabel('True Positive Rate')
-    ax[1].set_xlabel('True Negative Rate')
-    ax[1].set_xticks([0,0.5,1])
-    ax[1].set_yticks([0,0.5,1])
-    ax[1].set_xlim(0,1)
-    ax[1].set_ylim(0,1)
+    ax[1]=roc_formatter(ax[1])
     plt.tight_layout()
 
     fig.savefig('image/'+f"histogram_of_causal_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
@@ -571,12 +551,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         ax_histi.set_ylim(0)
         ax_histi.set_yticks([])
         ax_histi.set_xlabel('Causal value')
-        axi.set_xlim(0,1)
-        axi.set_ylim(0,1)
-        axi.set_xticks([0,0.5,1])
-        axi.set_yticks([0,0.5,1])
-        axi.set_ylabel('True Positive Rate',  fontsize=25)
-        axi.set_xlabel('False Positive Rate', fontsize=25)
+        axi=roc_formatter(axi)
+        axi.set_ylabel(axi.get_ylabel(), fontsize=25)
+        axi.set_xlabel(axi.get_xlabel(), fontsize=25)
         axi.legend(loc='upper left', bbox_to_anchor=(0.55, 0.95), fontsize=14)
 
     fig_data['edges'] = bins[:-1].copy()
