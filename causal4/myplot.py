@@ -502,6 +502,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         data_buff = cau.load_from_single(fname, key)
         causal_values[key] = data_buff[~np.eye(data_buff.shape[0], dtype=bool)].flatten()
         log_cau = np.log10(data_buff)
+        if np.any(data_buff[inf_mask]<=0):
+            print('WARNING: some negative entities occurs!')
+            inf_mask[data_buff<=0] = False
         if key in ('TE', 'MI'):
             log_cau += np.log10(2)
         counts_total = np.zeros(100)
