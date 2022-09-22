@@ -70,6 +70,7 @@ void Read_parameters(po::variables_map& vm)
         exit(0);
     }
 
+	CP = vm["CP"].as<double>();
     Lyapunov = vm["Lyapunov"].as<int>();
     record_data[0] = vm["record_spk"].as<int>();
     record_data[1] = vm["record_v"].as<int>();
