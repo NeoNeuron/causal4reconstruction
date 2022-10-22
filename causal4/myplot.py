@@ -16,6 +16,7 @@ def sci_formatter(x, pos):
     return r'$10^{%d}$'%x
 import warnings
 warnings.filterwarnings('ignore')
+from sklearn.cluster import KMeans
 
 def get_conn_fpath(pm_causal):
     N = pm_causal['Ne']+pm_causal['Ni']
@@ -44,6 +45,24 @@ def format_xticks(ax, hist_range):
         ax.set_xticks(xticks[::2])
     ax.xaxis.set_major_formatter(sci_formatter)
 
+def kmeans_1d(X:np.ndarray, return_label:bool=False):
+    """Perform kmeans clustering on 1d data.
+
+    Args:
+        X (np.ndarray): data to cluster, 1d.
+        return_label (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        threshold (float): clustering boundary of 1d data X.
+        labels (np.ndarray, optional): kmeans label.
+    """
+    kmeans = KMeans(n_clusters=2).fit(X.reshape(-1,1))
+    km_center_order = np.argsort(kmeans.cluster_centers_.flatten())
+    threshold = 0.5*(X[kmeans.labels_==km_center_order[0]].max() + X[kmeans.labels_==km_center_order[1]].min())
+    if return_label:
+        return threshold, kmeans.labels_
+    else:
+        return threshold
 
 def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
     """Histogram of causality masked by ground truth.
@@ -452,9 +471,21 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
     cau = CausalityAPI(dtype=pm_causal['path_input'].split('/')[-3], N=N, **pm_causal)
     fig, ax = plt.subplots(1,2, figsize=(13,6))
     causal_values = {key: np.zeros(N*N-N) for key in ('TE', 'GC', 'MI', 'CC')}
-    th_conditions = {}
-    fig_data = {'roc_gt':{}, 'roc_blind':{}, 'hist': {}, 'hist_conn': {}, 'hist_disconn':{}, 'hist_error':{}}
-    log_norm_fit_pval = {}
+    fig_data = {'roc_gt':{}, 
+                'roc_blind':{}, 
+                'hist': {}, 
+                'hist_conn': {}, 
+                'hist_disconn':{}, 
+                'hist_error':{}, 
+                'edges':{}, 
+                'log_norm_fit_pval': {}, 
+                'opt_th': {}, 
+                'kmean_th': {}, 
+                'acc_gauss': {}, 
+                'acc_kmeans': {}, 
+                'ppv_gauss': {}, 
+                'ppv_kmeans': {},
+                }
 
     inf_mask = ~np.eye(N, dtype=bool)
     if hist_range is None:
@@ -495,9 +526,13 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
     data_dp = cau.load_from_single(fname, 'Delta_p')
     data_dp = np.log10(np.abs(data_dp))
     counts, bins = np.histogram(data_dp[inf_mask], bins=100, density=True)
-    fig_data['hist_dp']  = counts.copy()
-    fig_data['edges_dp'] = bins[:-1].copy()
-    acc = ppv = 0.
+    for key in fig_data.keys():
+        if key == 'hist':
+            fig_data[key]['dp']  = counts.copy()
+        elif key == 'edges':
+            fig_data[key]['dp'] = bins[:-1].copy()
+        else:
+            fig_data[key]['dp'] = np.nan
     for key in ('CC', 'MI', 'GC', 'TE'):
         data_buff = cau.load_from_single(fname, key)
         causal_values[key] = data_buff[~np.eye(data_buff.shape[0], dtype=bool)].flatten()
@@ -514,13 +549,27 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
             counts_total += counts*ratio_
             fig_data[hist_key][key] = counts*ratio_
             ax_hist[0].plot(bins[:-1], counts*ratio_, ls=linestyle, **line_rc[key])
+        fig_data['edges'][key] = bins[:-1].copy()
+
+        # KMeans clustering causal values
+        th_idx = dict(TE=0, GC=1, MI=2, CC=3)
+        th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
+        # TODO: Fix inaccurate double peak separation for some cases.
+        # th_km = kmeans_1d(log_cau[inf_mask])
+        fig_data['kmean_th'][key] = th_km
+        ax_hist[0].axvline(th_km, ymax=0.9, lw=1, color=line_rc[key]['color'])
+        conn_recon = log_cau >= th_km
+        error_mask = np.logical_xor(conn, conn_recon)
+        fig_data['acc_kmeans'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
+        fig_data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+
+        # Double Gaussian Anaylsis
         fig_data['hist'][key] = counts_total.copy()
         ax_hist[1].plot(bins[:-1], counts_total, **line_rc[key])
-        if fit_p0 is None:
-            popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins)
-        else:
-            popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
-        # ax_hist.plot(bins[:-1], Double_Gaussian(bins[:-1], *popt), lw=4, ls=':', color=line_rc[key]['color'], )
+        popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
+        fig_data['opt_th'][key] = threshold
+        fig_data['log_norm_fit_pval'][key] = popt
+        fig_data['roc_blind'][key] = np.vstack((fpr, tpr))
         ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
         ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
         ax_hist[1].axvline(threshold, ymax=0.9, color=line_rc[key]['color'], ls='--')
@@ -528,26 +577,28 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         label=line_rc[key]['label'] + f" : {-np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2):.3f}"
         ax[1].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
-        log_norm_fit_pval[key] = popt
-        th_conditions[key] = threshold
-        fig_data['roc_blind'][key] = np.vstack((fpr, tpr))
-
         # calculate reconstruction accuracy
         conn_recon = log_cau >= threshold
         error_mask = np.logical_xor(conn, conn_recon)
-        acc += 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
-        ppv += (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+        fig_data['acc_gauss'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
+        fig_data['ppv_gauss'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
         counts_error, _ = np.histogram(log_cau[error_mask*inf_mask], bins=100, range=hist_range,density=True)
-        fig_data['hist_error'] = counts_error.copy()
+        fig_data['hist_error'][key] = counts_error.copy()
 
         fpr, tpr, _ = roc_curve(conn[inf_mask], log_cau[inf_mask])
+        fig_data['roc_gt'][key] = np.vstack((fpr, tpr))
         label = line_rc[key]['label'] + f" : {roc_auc_score(conn[inf_mask], log_cau[inf_mask]):.3f}"
         ax[0].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
-        fig_data['roc_gt'][key] = np.vstack((fpr, tpr))
 
     # print acc, 
-    ax[1].text(0.15, 0.90, f"acc={acc/4.*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
-    ax[1].text(0.15, 0.83, f"ppv={ppv/4.*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
+    acc_kmeans_mean = np.nanmean(list(fig_data['acc_kmeans'].values())) 
+    acc_gauss_mean  = np.nanmean(list(fig_data['acc_gauss'].values())) 
+    ppv_kmeans_mean = np.nanmean(list(fig_data['ppv_kmeans'].values())) 
+    ppv_gauss_mean  = np.nanmean(list(fig_data['ppv_gauss'].values())) 
+    ax[0].text(0.15, 0.90, f"acc={acc_kmeans_mean*100:.2f}%", fontsize=18, transform=ax[0].transAxes)
+    ax[0].text(0.15, 0.83, f"ppv={ppv_kmeans_mean*100:.2f}%", fontsize=18, transform=ax[0].transAxes)
+    ax[1].text(0.15, 0.90, f"acc={acc_gauss_mean*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
+    ax[1].text(0.15, 0.83, f"ppv={ppv_gauss_mean*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
 
     for axi, ax_histi in zip(ax, ax_hist):
         format_xticks(ax_histi, hist_range)
@@ -558,10 +609,6 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         axi.set_ylabel(axi.get_ylabel(), fontsize=25)
         axi.set_xlabel(axi.get_xlabel(), fontsize=25)
         axi.legend(loc='upper left', bbox_to_anchor=(0.55, 0.95), fontsize=14)
-
-    fig_data['edges'] = bins[:-1].copy()
-    fig_data['log_norm_fit_pval'] = log_norm_fit_pval
-    fig_data['opt_th'] = th_conditions
 
     plt.tight_layout()
     fig.savefig(f"image/histogram_of_causal_recon_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")

@@ -153,7 +153,9 @@ def Double_Gaussian(x, a1, a2, mu1, mu2, sigma1, sigma2):
     """
     return Gaussian(x, a1, mu1, sigma1) + Gaussian(x, a2, mu2, sigma2)
 
-def Double_Gaussian_Analysis(counts, bins, p0=[0.5, 0.5, -7, -5, 1, 1]):
+def Double_Gaussian_Analysis(counts, bins, p0=None):
+    if p0 is None:
+        p0 = [0.5, 0.5, -7, -5, 1, 1]
     popt, _ = curve_fit(Double_Gaussian, bins[:-1], counts, p0=p0)
     # calculate threshold, find crossing point of two Gaussian
     if popt[2] < popt[3]:
