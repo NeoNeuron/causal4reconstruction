@@ -12,6 +12,7 @@
 #include <omp.h>
 #include <algorithm>
 #include <fstream>
+#include <random>
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
@@ -36,5 +37,8 @@ void str2vec(std::string str, std::vector<T>& out) {
 #define ANSI_COLOR_RESET   "\x1b[0m"
 #define WARNING(X) printf(ANSI_COLOR_YELLOW X ANSI_COLOR_RESET)
 #define ERROR(X) printf(ANSI_COLOR_RED X ANSI_COLOR_RESET)
+
+std::random_device rd;
+std::mt19937 rng(rd());
 
 #endif // __COMMON_HEADER_

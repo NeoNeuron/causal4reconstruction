@@ -62,6 +62,8 @@ void Output_filename()
 	strcat(str, "-"), strcat(str, input_filename);
 
 	//strcat(str, "T"), sprintf(ch, "%d", int(T_Max / DT + 0.5)), strcat(str, ch);
+	if (shuffle_flag)
+		strcat(str, "_shuffle");
 	strcat(str, ".dat");
 
 	strcpy(output_filename, str);

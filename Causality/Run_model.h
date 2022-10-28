@@ -119,6 +119,11 @@ void Run_model()
 		read_data(fp, data_length, 1.0*id*data_length*bin, 1.0*(1 + id)*data_length*bin);
 		//Notice!  id*data_length may larger than MAX INT 2147483647
 
+		// shuffling data
+		if (shuffle_flag) {
+			for (int neu_id=0; neu_id < N; neu_id ++)
+				shuffle(&X[neu_id][0], &X[neu_id][data_length], rng);
+		}
 		
 #pragma omp parallel for num_threads(num_threads_openmp)
 

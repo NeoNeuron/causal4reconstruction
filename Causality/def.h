@@ -12,6 +12,7 @@ int k;					// k = order_y
 double delay;			// delay: x(t+delay+bin), x(t+delay), y(t)
 int tau;				//tau=delay/bin,  delay: x(n+tau+1), x(n+tau), y(n)
 double L, accuracy[4], threshold[4];
+bool shuffle_flag = false;
 
 char input_filename[200], output_filename[200], matrix_name[100];
 char path_input[200], path_output[200];

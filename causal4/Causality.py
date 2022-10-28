@@ -318,7 +318,7 @@ class CausalityAPI3(CausalityAPI):
 
 #%% 
 import subprocess as sp
-def run(verbose=False, **kwargs):
+def run(verbose=False, shuffle=False, **kwargs):
     '''
     Run calculation of causal values.
 
@@ -348,7 +348,9 @@ def run(verbose=False, **kwargs):
     #     for option in list(self.config[section]):
     #         cml_options += '--'+section+'.'+option + ' ' + (self.config[section][option]) + ' '
     if verbose:
-        cml_options += '-v'
+        cml_options += '-v '
+    if shuffle:
+        cml_options += '-s '
     # Trick: replace comma with space;
     cml_options_list = [item.replace(',', ' ') if ',' in item else item for item in cml_options.split(' ')]
     result = sp.run(cml_options_list, capture_output=True, universal_newlines=True)
