@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     generic.add_options()
         ("help,h", "produce help message")
         ("verbose,v", po::bool_switch(&verbose), "show output")
-        ("config,c", po::value<string>()->default_value("NetCau_parameters.ini"), "config file, relative to prefix")
+        ("config,c", po::value<string>()->default_value("./Causality/NetCau_parameters.ini"), "config file, relative to prefix")
         ;
     po::options_description config("Configs");
     config.add_options()
@@ -32,13 +32,13 @@ int main(int argc, char **argv)
         ("order", po::value<string>()->default_value("1 1"), "order of TE. Syntax: 'order_x order_y'; ")
         ("T_Max", po::value<double>()->default_value(1e7), "Maximum length of time series.")
         ("DT", po::value<double>()->default_value(2e4), "Minimum length of time series.")
-        ("auto_T_max", po::value<int>()->default_value(1), "")
+        ("auto_T_max", po::value<int>()->default_value(1), "auto-adjust T_Max to the maximum time of the spike events.")
         ("bin", po::value<double>()->default_value(0.5), "time bin for causality calculation.")
         ("sample_delay", po::value<double>()->default_value(0.0), "tau := time delay")
         ("shuffle,s", po::bool_switch(&shuffle_flag), "shuffle the raw spike train for permutation test.")
-        ("matrix_name", po::value<string>()->default_value(""), "filename of connectivity matrix.")
-        ("path_input", po::value<string>()->default_value(""), "path for input data file")
-        ("path_output", po::value<string>()->default_value(""), "path for output data file")
+        ("matrix_name", po::value<string>()->default_value("./"), "filename of connectivity matrix.")
+        ("path_input", po::value<string>()->default_value("./"), "path for input data file")
+        ("path_output", po::value<string>()->default_value("./"), "path for output data file")
         ;
     // create variable map
     po::variables_map vm;
@@ -56,8 +56,12 @@ int main(int argc, char **argv)
     if (vm.count("config")) {
         string cfname = vm["config"].as<string>();
         config_file.open(cfname.c_str());
-        po::store(po::parse_config_file(config_file, config), vm);
-        po::notify(vm);
+        if (!config_file) {
+            cout << "[WARNNING]: config file '" << cfname << "' does not exist! Run with default configs and CML arguments" << endl;
+        } else {
+            po::store(po::parse_config_file(config_file, config), vm);
+            po::notify(vm);
+        }
     }
     // Override config params with cml params
     po::store(po::parse_command_line(argc, argv, cml_options), vm);

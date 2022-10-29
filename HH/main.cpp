@@ -33,7 +33,7 @@ int main(int argc,char **argv) {
   generic.add_options()
     ("help,h", "produce help message")
     ("verbose,v", po::bool_switch(&verbose), "show output")
-    ("config,c", po::value<string>()->default_value("NetModel_parameters.ini"), "config filename.")
+    ("config,c", po::value<string>()->default_value("./HH/NetModel_parameters.ini"), "config filename.")
     ;
   po::options_description config("Configs");
   config.add_options()
@@ -78,8 +78,12 @@ int main(int argc,char **argv) {
   if (vm.count("config")) {
     string cfname = vm["config"].as<string>();
     config_file.open(cfname.c_str());
-    po::store(po::parse_config_file(config_file, config), vm);
-    po::notify(vm);
+    if (!config_file) {
+      cout << "[WARNNING]: config file '" << cfname << "' does not exist! Run with default configs and CML arguments" << endl;
+    } else {
+      po::store(po::parse_config_file(config_file, config), vm);
+      po::notify(vm);
+    }
   }
   // Override config params with cml params
   po::store(po::parse_command_line(argc, argv, cml_options), vm);

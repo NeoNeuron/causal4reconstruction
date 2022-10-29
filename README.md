@@ -13,14 +13,9 @@
 - [Sci-kit Learn]()
 
 ## Installation
-### Causality estimator
+### Compile C/C++ modules
 ```bash
-g++ -O2 -w main.cpp -o ./a.out -I ../include/ -lboost_program_options
-```
-
-### Network simulators
-```bash
-g++ -O2 main.cpp -o ./cal_causality.out -I ../include -lboost_program_options
+make all -j
 ```
 
 ### Install python utilities

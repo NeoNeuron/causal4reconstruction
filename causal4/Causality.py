@@ -340,7 +340,7 @@ def run(verbose=False, shuffle=False, **kwargs):
         path_input = "--path_input %s",
         path_output = "--path_output %s",
     )
-    cml_options = './Causality/cal_causality.out -c ./Causality/NetCau_parameters.ini '
+    cml_options = './bin/calCausality -c ./Causality/NetCau_parameters.ini '
     for key in kwargs:
         if key in flag_map:
             cml_options += flag_map[key]%kwargs[key] + ' '
