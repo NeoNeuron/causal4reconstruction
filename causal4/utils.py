@@ -1,23 +1,32 @@
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt 
+from matplotlib.axes import Axes
 from scipy.ndimage.filters import gaussian_filter1d
-import struct
+from struct import pack, _clearcache
 from scipy.optimize import curve_fit
+from datetime import datetime
+from pathlib import Path
+from multiprocessing import Process, Manager, Queue
+from multiprocessing.shared_memory import SharedMemory
+from typing import Tuple
+from .Causality import CausalityIO, run
+from joblib import Parallel, delayed
+
 
 def spk2bin(spike_train:np.ndarray, dt:float)->np.ndarray:
     spk_bin = np.zeros(np.ceil(spike_train.max()/dt).astype(int)+1)
     spk_bin[(spike_train/dt).astype(int)] = 1
     return spk_bin
 
-def save2bin(fname, data, fmode='wb', verbose=False):
+def save2bin(fname, data, fmode='wb', verbose=False, clearcache=False):
     with open(fname, fmode) as f:
-        f.write(struct.pack("d"*data.shape[0]*data.shape[1], *data.flatten()))
+        f.write(pack("d"*data.shape[0]*data.shape[1], *data.flatten()))
+    if clearcache:
+        _clearcache()
     if verbose:
         print(f">> save to {fname:s}")
 
-def plot_spk_fft(spk_data:np.ndarray, dt:float=0.5, ax:mpl.axes.Axes=None,
-    label:str=None)->mpl.axes.Axes:
+def plot_spk_fft(spk_data:np.ndarray, dt:float=0.5, ax:Axes=None,
+    label:str=None)->Axes:
 
     signal = spk2bin(spk_data, dt=dt).astype(float)
     # if signal length longer than 100 seconds
@@ -173,6 +182,105 @@ def Double_Gaussian_Analysis(counts, bins, p0=None):
     fpr = 1-false_cumsum
     tpr = 1-true_cumsum
     return popt, th_, fpr, tpr
+
+def mp_logger(q:Queue, logfile:Path):
+    """write log to file in multiprocessing.Pool.
+
+    Args:
+        q (Queue): multiprocessing.Manager().Queue().
+        logfile (Path): filename of log file.
+    """
+    with logfile.open('w') as out:
+        while True:
+            val = q.get()
+            if val is None: break
+            if isinstance(val, list):
+                for item in val:
+                    out.write('['+datetime.now().strftime('%Y-%m-%d %H:%M:%S')+']:\t')
+                    out.write(item + '\n')
+            else:
+                out.write('['+datetime.now().strftime('%Y-%m-%d %H:%M:%S')+']:\t')
+                out.write(val + '\n')
+            out.write('-'*10+'\n')
+
+def shrink_datafile(path:Path, f:float, fu:float, T:float, log_queue:Queue=None, dry_run:bool=True):
+    """delete spike events with spike time greater than given value.
+
+    Args:
+        path (Path): folder path of spike data.
+        f (float): Poisson feedforward strength.
+        fu (float): products of Poisson strength and frequency.
+        T (float): The upper bound of spike events to shrink.
+        log_queue (Queue, optional): multiprocessing.Manager().Queue() to buffer logging info. Defaults to None.
+        dry_run (bool, optional): Flag to dry_run, generating logging without any other operation. Defaults to True.
+    """
+    filename = Path(f"HHp=0.25s=0.020f={f:.3f}u={fu/f:.3f}_spike_train.dat")
+    raw_data = np.fromfile(path/filename, dtype=float).reshape(-1,2)
+    if raw_data[-1, 0] > T:
+        new_data = raw_data[raw_data[:,0]<=T,:]
+        if log_queue is not None:
+            log_queue.put([
+                "processing file: '" + str(path/filename) + "' ...",
+                f"raw file contains {raw_data.shape[0]:d} events, and last spike time is {raw_data[-1,0]:f}.",
+                f"new file contains {new_data.shape[0]:d} events, and last spike time is {new_data[-1,0]:f}.",
+                ])
+        if not dry_run:
+            save2bin(path/filename, new_data, clearcache=True)
+
+# cutting off the reduandent spike trains
+def compress_data(path:Path=Path('./HH/data/EE/N=3/'), T:float=1e7, dry_run:bool=True):
+    f_list = np.arange(16)*0.01 + 0.05
+    fu_list = np.arange(21)*0.002 + 0.01
+    ff, fufu = np.meshgrid(f_list, fu_list)
+
+    m = Manager()
+    queue = m.Queue()
+    log_process = Process(target=mp_logger, args=(queue, path/'compress_data.log'))
+    log_process.start()
+    Parallel(n_jobs=8)(
+        delayed(shrink_datafile)(path, f, fu, T, queue, dry_run) for f, fu in zip(ff.flatten(), fufu.flatten()))
+    queue.put(None)
+    log_process.join()
+    log_process.close()
+
+
+def create_np_array_from_shared_mem(
+    shared_mem: SharedMemory, shared_data_dtype: np.dtype, shared_data_shape: Tuple[int, ...]
+) -> np.ndarray:
+    """create numpy array from shared memory.
+
+    Args:
+        shared_mem (SharedMemory): shared memory.
+        shared_data_dtype (np.dtype): dtype of numpy.array to generate.
+        shared_data_shape (Tuple[int, ...]): shape of numpy.array to generate.
+
+    Returns:
+        np.ndarray: generated numpy.array.
+    """
+    arr = np.frombuffer(shared_mem.buf, dtype=shared_data_dtype)
+    arr = arr.reshape(shared_data_shape)
+    return arr
+
+def scan_fu_process(
+    ff:np.ndarray, fufu:np.ndarray, i:int, j:int, 
+    pm_causal:dict,
+    run_times:int, shuffle:bool, 
+    shared_mem: SharedMemory, shared_dtype:np.dtype, shared_shape:Tuple[int, ...]
+    ):
+    if ff.shape != shared_shape[:2]:
+        raise RuntimeError("Shape of shared memeory doesn't consist with shape of parameter set.")
+    arr = create_np_array_from_shared_mem(shared_mem, shared_dtype, shared_shape)
+    _f, _fu = ff[i,j], fufu[i,j]
+    _pm_causal = pm_causal.copy()
+    _pm_causal['fname']=_pm_causal['fname'].split('f=')[0]+f'f={_f:.3f}u={_fu/_f:.3f}'
+    cau = CausalityIO(dtype='HH', N=_pm_causal['Ne']+_pm_causal['Ni'], **_pm_causal)
+    for idx in range(run_times):
+        run(False, shuffle, **_pm_causal)
+        if shuffle:
+            arr[i,j,idx,:,:]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
+        else:
+            arr[i,j,idx,:,:]=cau.load_from_single(_pm_causal['fname'], 'TE')
+    del arr  # delete np array so the shared memory can be deallocated
 
 if __name__ == '__main__':
     pass
