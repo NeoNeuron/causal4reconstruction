@@ -282,5 +282,29 @@ def scan_fu_process(
             arr[i,j,idx,:,:]=cau.load_from_single(_pm_causal['fname'], 'TE')
     del arr  # delete np array so the shared memory can be deallocated
 
+def scan_s_process(
+    ss:np.ndarray, i:int, 
+    pm_causal:dict,
+    run_times:int, shuffle:bool, 
+    shared_mem: SharedMemory, shared_dtype:np.dtype, shared_shape:Tuple[int, ...]
+    ):
+    if ss.shape != shared_shape[:1]:
+        raise RuntimeError("Shape of shared memeory doesn't consist with shape of parameter set.")
+    arr = create_np_array_from_shared_mem(shared_mem, shared_dtype, shared_shape)
+    _s = ss[i]
+    _pm_causal = pm_causal.copy()
+    fname = _pm_causal['fname']
+    begin = fname.find('s=')
+    end = fname.find('f=')
+    _pm_causal['fname'] = fname.replace(fname[begin:end], f's={_s:.3f}')
+    cau = CausalityIO(dtype='HH', N=_pm_causal['Ne']+_pm_causal['Ni'], **_pm_causal)
+    for idx in range(run_times):
+        run(False, shuffle, **_pm_causal)
+        if shuffle:
+            arr[i,idx,:,:]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
+        else:
+            arr[i,idx,:,:]=cau.load_from_single(_pm_causal['fname'], 'TE')
+    del arr  # delete np array so the shared memory can be deallocated
+
 if __name__ == '__main__':
     pass
