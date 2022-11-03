@@ -157,7 +157,7 @@ void out_put_filename()
 		strcat(str, "LN-");
 
 	strcat(str, "p="), sprintf(c, "%0.2f", P_c), strcat(str, c);
-	if (S[0]<1e-3)
+	if (S[0]<1e-3 && S[0]>1e-10)
 		strcat(str, "s="), sprintf(c, "%0.5f", S[0]), strcat(str, c);  
 	else
 		strcat(str, "s="), sprintf(c, "%0.3f", S[0]), strcat(str, c);
