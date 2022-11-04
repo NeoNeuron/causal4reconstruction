@@ -45,7 +45,7 @@ def format_xticks(ax, hist_range):
         ax.set_xticks(xticks[::2])
     ax.xaxis.set_major_formatter(sci_formatter)
 
-def kmeans_1d(X:np.ndarray, return_label:bool=False):
+def kmeans_1d(X:np.ndarray, init='kmeans++', return_label:bool=False):
     """Perform kmeans clustering on 1d data.
 
     Args:
@@ -56,7 +56,7 @@ def kmeans_1d(X:np.ndarray, return_label:bool=False):
         threshold (float): clustering boundary of 1d data X.
         labels (np.ndarray, optional): kmeans label.
     """
-    kmeans = KMeans(n_clusters=2).fit(X.reshape(-1,1))
+    kmeans = KMeans(n_clusters=2, max_iter=1, init=init).fit(X.reshape(-1,1))
     km_center_order = np.argsort(kmeans.cluster_centers_.flatten())
     threshold = 0.5*(X[kmeans.labels_==km_center_order[0]].max() + X[kmeans.labels_==km_center_order[1]].min())
     if return_label:
@@ -553,9 +553,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
 
         # KMeans clustering causal values
         th_idx = dict(TE=0, GC=1, MI=2, CC=3)
-        th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
+        # th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
         # TODO: Fix inaccurate double peak separation for some cases.
-        # th_km = kmeans_1d(log_cau[inf_mask])
+        th_km = kmeans_1d(log_cau[inf_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
         fig_data['kmean_th'][key] = th_km
         ax_hist[0].axvline(th_km, ymax=0.9, lw=1, color=line_rc[key]['color'])
         conn_recon = log_cau >= th_km
