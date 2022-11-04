@@ -38,6 +38,10 @@ def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float,
     if spk_fname is not None:
         spk_name_new = spk_fname[:-4] if spk_fname.endswith('.dat') else spk_fname
     else:
+        if dtype == 'Lorenz':
+            dtype='L'
+        elif dtype == 'Logistic':
+            dtype='Log'
         if s < 1e-3 and s>0:
             spk_name_new = f"{dtype:s}p={p:.2f}s={s:.5f}f={f:.3f}u={u:.3f}"
         else:
