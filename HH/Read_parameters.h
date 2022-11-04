@@ -162,7 +162,7 @@ void out_put_filename()
 	else
 		strcat(str, "s="), sprintf(c, "%0.3f", S[0]), strcat(str, c);
 	if (NE && NI) {
-		if (S[2]<1e-3)
+		if (S[2]<1e-3 && S[2]>1e-10)
 			strcat(str, "s="), sprintf(c, "%0.5f", S[2]), strcat(str, c);  
 		else
 			strcat(str, "s="), sprintf(c, "%0.3f", S[2]), strcat(str, c);
