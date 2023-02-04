@@ -2,15 +2,33 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from struct import pack, unpack, _clearcache
+from pathlib import Path
 # %%
-def downsample(fname, ofname, path, ra):
+def downsample(fname:str, ofname:str, path:str, ra:float):
+    """downsample spike train data
+
+    Args:
+        fname (str): filename of raw spike train data
+        ofname (str): filename of downsampled spike train data
+        path (str): path of spike train data
+        ra (float): downsample threshold
+    """
     binsize = 10
     n_spk_buff = 100_000
     total_spk_counts = 0
     del_spk_counts = 0
-
-    of = open(path+ofname, 'wb')
-    with open(path+fname, 'rb') as f:
+    ifpath = Path(path+fname)
+    ofpath = Path(path+ofname)
+    if ofpath.exists():
+        total_spk_counts = int(ifpath.stat().st_size/8/2)
+        del_spk_counts = int((ifpath.stat().st_size-ofpath.stat().st_size)/8/2)
+        print(f">> {ofpath} already exists ...")
+        print(f">> raw size :      {total_spk_counts:12.0f} spikes")
+        print(f">> filtered size : {del_spk_counts:12.0f} spikes")
+        print(f">> {100*del_spk_counts/total_spk_counts:.2f}% spikes have been deleted!")
+        return 0
+    of = open(ofpath, 'wb')
+    with open(ifpath, 'rb') as f:
         buff_char = f.read(n_spk_buff*8*2)
         buff_len = int(len(buff_char)/8)
         threshold = None
@@ -22,8 +40,9 @@ def downsample(fname, ofname, path, ra):
             spk_buff = np.array(unpack('d'*buff_len, buff_char)).reshape(-1,2)
             tmax = spk_buff[-1,0]
             edges = current_end_edge + \
-            np.arange(int((tmax-current_end_edge)/binsize)+1)*binsize
+                np.arange(int((tmax-current_end_edge)/binsize)+1)*binsize
             current_end_edge = edges[-1]
+            # histogram exclude (current_end_edge, tmax]
 
             # calculate temporal histogram
             if slices is not None and isinstance(slices, np.ndarray):
@@ -50,7 +69,9 @@ def downsample(fname, ofname, path, ra):
         # process last slices
         if slices.shape[0] <= threshold:
             of.write(pack("d"*slices.shape[0]*slices.shape[1], *slices.flatten()))
-            total_spk_counts += slices.shape[0]
+        else:
+            del_spk_counts += slices.shape[0]
+        total_spk_counts += slices.shape[0]
     of.close()
     print(f">> {total_spk_counts:d} spikes in total ...")
     print(f">> {del_spk_counts:d} spikes to delete ...")
@@ -66,6 +87,7 @@ def visualize_downsample(path, fname, ofname, n_spks=100_000, xlim=None):
         buff_char = f.read(n_spks*8*2)
         buff_len = int(len(buff_char)/8)
         spk_filtered = np.array(unpack('d'*buff_len, buff_char)).reshape(-1,2)
+    spk_data = {'raw':spk_raw, 'filtered':spk_filtered}
 
     plt.figure(figsize=(10,4))
     plt.plot(spk_raw[:,0], spk_raw[:,1],'|',color='navy',ms=10, label='raw')
@@ -77,6 +99,7 @@ def visualize_downsample(path, fname, ofname, n_spks=100_000, xlim=None):
     plt.xlabel('Time (ms)')
     plt.ylabel('Neuronal Indices')
     plt.legend()
+    return spk_data
 # %%
 if __name__ == '__main__':
 # %%
