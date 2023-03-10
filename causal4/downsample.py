@@ -22,10 +22,11 @@ def downsample(fname:str, ofname:str, path:str, ra:float):
     if ofpath.exists():
         total_spk_counts = int(ifpath.stat().st_size/8/2)
         del_spk_counts = int((ifpath.stat().st_size-ofpath.stat().st_size)/8/2)
-        print(f">> {ofpath} already exists ...")
-        print(f">> raw size :      {total_spk_counts:12.0f} spikes")
-        print(f">> filtered size : {del_spk_counts:12.0f} spikes")
-        print(f">> {100*del_spk_counts/total_spk_counts:.2f}% spikes have been deleted!")
+        if True:
+            print(f">> {ofpath} already exists ...")
+            print(f">> raw size :      {total_spk_counts:12.0f} spikes")
+            print(f">> filtered size : {del_spk_counts:12.0f} spikes")
+            print(f">> {100*del_spk_counts/total_spk_counts:.2f}% spikes have been deleted!")
         return 0
     of = open(ofpath, 'wb')
     with open(ifpath, 'rb') as f:
@@ -93,7 +94,7 @@ def visualize_downsample(path, fname, ofname, n_spks=100_000, xlim=None):
     plt.plot(spk_raw[:,0], spk_raw[:,1],'|',color='navy',ms=10, label='raw')
     plt.plot(spk_filtered[:,0], spk_filtered[:,1], 'o', 
          markeredgecolor='orange', markerfacecolor='none',
-         label='after downsampling')
+        label='after downsampling')
     if xlim is not None:
         plt.xlim(*xlim)
     plt.xlabel('Time (ms)')
