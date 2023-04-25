@@ -470,22 +470,23 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
     fname = pm_causal['fname']
     cau = CausalityAPI(dtype=pm_causal['path_input'].split('/')[-3], N=N, **pm_causal)
     fig, ax = plt.subplots(1,2, figsize=(13,6))
-    causal_values = {key: np.zeros(N*N-N) for key in ('TE', 'GC', 'MI', 'CC')}
-    fig_data = {'roc_gt':{}, 
-                'roc_blind':{}, 
-                'hist': {}, 
-                'hist_conn': {}, 
-                'hist_disconn':{}, 
-                'hist_error':{}, 
-                'edges':{}, 
-                'log_norm_fit_pval': {}, 
-                'opt_th': {}, 
-                'kmean_th': {}, 
-                'acc_gauss': {}, 
-                'acc_kmeans': {}, 
-                'ppv_gauss': {}, 
-                'ppv_kmeans': {},
-                }
+    fig_data = {
+        'raw_data':{},
+        'roc_gt':{},
+        'roc_blind':{},
+        'hist': {},
+        'hist_conn': {},
+        'hist_disconn':{},
+        'hist_error':{},
+        'edges':{},
+        'log_norm_fit_pval': {},
+        'opt_th': {},
+        'kmean_th': {},
+        'acc_gauss': {},
+        'acc_kmeans': {},
+        'ppv_gauss': {},
+        'ppv_kmeans': {},
+    }
 
     inf_mask = ~np.eye(N, dtype=bool)
     if hist_range is None:
@@ -499,7 +500,8 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
 
     ax_hist = [inset_axes(axi, width="100%", height="100%",
                 bbox_to_anchor=(.30, .20, .60, .40),
-                bbox_transform=axi.transAxes, loc='center', axes_kwargs={'facecolor':[1,1,1,0]}) for axi in ax]
+                bbox_transform=axi.transAxes, loc='center', 
+                axes_kwargs={'facecolor':[1,1,1,0]}) for axi in ax]
     for axi in ax_hist:
         axi.spines['left'].set_visible(False)
         axi.xaxis.set_major_locator(MaxNLocator(4, integer=True))
@@ -519,9 +521,30 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         axins.spines['left'].set_visible(False)
 
         zero_mask = conn_weight>0
-        axins.hist(conn_weight[inf_mask*zero_mask], bins=40)
+        if 'LN' in fname_conn:
+            counts, bins = np.histogram(
+                np.log10(conn_weight[inf_mask*zero_mask]), bins=40)
+        else:
+            counts, bins = np.histogram(
+                conn_weight[inf_mask*zero_mask], bins=40)
+        axins.bar(bins[:-1], counts, width=bins[1]-bins[0])
         axins.set_title('Structural Conn', fontsize=12)
         axins.set_yticks([])
+        for key in fig_data.keys():
+            if key == 'hist':
+                fig_data[key]['conn']  = counts.copy()
+            elif key == 'edges':
+                fig_data[key]['conn'] = bins[:-1].copy()
+            elif key == 'raw_data':
+                fig_data[key]['conn'] = conn_weight.copy()
+            else:
+                fig_data[key]['conn'] = np.nan
+    else:
+        for key in fig_data.keys():
+            if key == 'raw_data':
+                fig_data[key]['conn'] = conn.astype(float)
+            else:
+                fig_data[key]['conn'] = np.nan
 
     data_dp = cau.load_from_single(fname, 'Delta_p')
     data_dp = np.log10(np.abs(data_dp))
@@ -531,12 +554,14 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
             fig_data[key]['dp']  = counts.copy()
         elif key == 'edges':
             fig_data[key]['dp'] = bins[:-1].copy()
+        elif key == 'raw_data':
+            fig_data[key]['dp'] = data_dp.copy()
         else:
             fig_data[key]['dp'] = np.nan
     for key in ('CC', 'MI', 'GC', 'TE'):
         data_buff = cau.load_from_single(fname, key)
-        causal_values[key] = data_buff[~np.eye(data_buff.shape[0], dtype=bool)].flatten()
         log_cau = np.log10(data_buff)
+        fig_data['raw_data'][key] = log_cau.copy()
         if np.any(data_buff[inf_mask]<=0):
             print('WARNING: some negative entities occurs!')
             inf_mask[data_buff<=0] = False
@@ -550,9 +575,12 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
             fig_data[hist_key][key] = counts*ratio_
             ax_hist[0].plot(bins[:-1], counts*ratio_, ls=linestyle, **line_rc[key])
         fig_data['edges'][key] = bins[:-1].copy()
+        fig_data['hist'][key] = counts_total.copy()
 
         # KMeans clustering causal values
-        th_idx = dict(TE=0, GC=1, MI=2, CC=3)
+        if fit_p0 is None:
+            fit_p0 = [0.5, 0.5, -7, -5, 1, 1]
+        # th_idx = dict(TE=0, GC=1, MI=2, CC=3)
         # th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
         # TODO: Fix inaccurate double peak separation for some cases.
         th_km = kmeans_1d(log_cau[inf_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
@@ -564,7 +592,6 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         fig_data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
 
         # Double Gaussian Anaylsis
-        fig_data['hist'][key] = counts_total.copy()
         ax_hist[1].plot(bins[:-1], counts_total, **line_rc[key])
         popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
         fig_data['opt_th'][key] = threshold
