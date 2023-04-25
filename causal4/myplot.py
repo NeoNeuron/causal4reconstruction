@@ -613,3 +613,40 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
     plt.tight_layout()
     fig.savefig(f"image/histogram_of_causal_recon_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
     return fig_data
+
+import struct
+def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax=None):
+    """plot sample raster plot given network parameters
+
+    Args:
+        pm_causal (dict): paramter dictionary
+        xrange (tuple, optional): range of xaxis. Defaults to (0,1000).
+        return_spk (bool, optional): return spike data. Defaults to False.
+        ax (optional): matplotlib axis. Defaults to None.
+
+    Returns:
+        matplotlib.Figure: figure containing raster plot
+    """
+    spk_fname = f"{pm_causal['path_input']}EE/N=100/{pm_causal['fname']:s}_spike_train.dat"
+    n_time = 50
+    N = int(pm_causal['Ne']+pm_causal['Ni'])
+    with open(spk_fname, 'rb') as f:
+        spk_data = np.array(struct.unpack('d'*2*N*n_time, f.read(8*2*N*n_time))).reshape(-1,2)
+        while spk_data[-1,0] < xrange[1]:
+            spk_data_more = np.array(struct.unpack('d'*2*N*n_time, f.read(8*2*N*n_time))).reshape(-1,2)
+            spk_data = np.concatenate((spk_data, spk_data_more), axis=0)
+    if ax is None:
+        fig, ax = plt.subplots(1,1,figsize=(12,3))
+    else:
+        fig = ax.get_figure()
+    ax.plot(spk_data[:, 0], spk_data[:, 1], '|')
+    ax.set_xlim(*xrange)
+    ax.set_xlabel('Time (ms)')
+    print(f"mean firing rate is {spk_data.shape[0]/spk_data[-1,0]/N*1000.:.3f} Hz")
+    plt.tight_layout()
+    prefix = spk_fname.split('/')[-1].replace('_spike_train.dat', '')
+    fig.savefig('image/'+f'raster_{prefix:s}.pdf')
+    if return_spk:
+        return fig, spk_data
+    else:
+        return fig
