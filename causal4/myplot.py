@@ -597,20 +597,25 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         fig_data['opt_th'][key] = threshold
         fig_data['log_norm_fit_pval'][key] = popt
         fig_data['roc_blind'][key] = np.vstack((fpr, tpr))
-        ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
-        ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
-        ax_hist[1].axvline(threshold, ymax=0.9, color=line_rc[key]['color'], ls='--')
-        # plot double Gaussian based ROC
-        label=line_rc[key]['label'] + f" : {-np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2):.3f}"
-        ax[1].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
+        if popt is not None:
+            ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
+            ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
+            ax_hist[1].axvline(threshold, ymax=0.9, color=line_rc[key]['color'], ls='--')
+            # plot double Gaussian based ROC
+            label=line_rc[key]['label'] + f" : {-np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2):.3f}"
+            ax[1].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
-        # calculate reconstruction accuracy
-        conn_recon = log_cau >= threshold
-        error_mask = np.logical_xor(conn, conn_recon)
-        fig_data['acc_gauss'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
-        fig_data['ppv_gauss'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
-        counts_error, _ = np.histogram(log_cau[error_mask*inf_mask], bins=100, range=hist_range,density=True)
-        fig_data['hist_error'][key] = counts_error.copy()
+            # calculate reconstruction accuracy
+            conn_recon = log_cau >= threshold
+            error_mask = np.logical_xor(conn, conn_recon)
+            fig_data['acc_gauss'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
+            fig_data['ppv_gauss'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+            counts_error, _ = np.histogram(log_cau[error_mask*inf_mask], bins=100, range=hist_range,density=True)
+            fig_data['hist_error'][key] = counts_error.copy()
+        else:
+            fig_data['acc_gauss'][key] = np.nan
+            fig_data['ppv_gauss'][key] = np.nan
+            fig_data['hist_error'][key] = np.nan
 
         fpr, tpr, _ = roc_curve(conn[inf_mask], log_cau[inf_mask])
         fig_data['roc_gt'][key] = np.vstack((fpr, tpr))

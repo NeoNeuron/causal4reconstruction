@@ -165,23 +165,26 @@ def Double_Gaussian(x, a1, a2, mu1, mu2, sigma1, sigma2):
 def Double_Gaussian_Analysis(counts, bins, p0=None):
     if p0 is None:
         p0 = [0.5, 0.5, -7, -5, 1, 1]
-    popt, _ = curve_fit(Double_Gaussian, bins[:-1], counts, p0=p0)
-    # calculate threshold, find crossing point of two Gaussian
-    if popt[2] < popt[3]:
-        x_grid = np.linspace(popt[2]-0.2, popt[3]+0.2, 10000)
-    else:
-        x_grid = np.linspace(popt[3]-0.2, popt[2]+0.2, 10000)
-    th_ = x_grid[np.argmin(np.abs(Gaussian(x_grid, popt[0], popt[2], popt[4], )-Gaussian(x_grid, popt[1], popt[3], popt[5], )))]
+    try:
+        popt, _ = curve_fit(Double_Gaussian, bins[:-1], counts, p0=p0)
+        # calculate threshold, find crossing point of two Gaussian
+        if popt[2] < popt[3]:
+            x_grid = np.linspace(popt[2]-0.2, popt[3]+0.2, 10000)
+        else:
+            x_grid = np.linspace(popt[3]-0.2, popt[2]+0.2, 10000)
+        th_ = x_grid[np.argmin(np.abs(Gaussian(x_grid, popt[0], popt[2], popt[4], )-Gaussian(x_grid, popt[1], popt[3], popt[5], )))]
 
-    true_cumsum = np.cumsum(Gaussian(bins[:-1], popt[0], popt[2], popt[4], ))
-    true_cumsum /= true_cumsum[-1]
-    false_cumsum = np.cumsum(Gaussian(bins[:-1], popt[1], popt[3], popt[5], ))
-    false_cumsum /= false_cumsum[-1]
-    if popt[2] < popt[3]:
-        true_cumsum, false_cumsum = false_cumsum, true_cumsum
-    fpr = 1-false_cumsum
-    tpr = 1-true_cumsum
-    return popt, th_, fpr, tpr
+        true_cumsum = np.cumsum(Gaussian(bins[:-1], popt[0], popt[2], popt[4], ))
+        true_cumsum /= true_cumsum[-1]
+        false_cumsum = np.cumsum(Gaussian(bins[:-1], popt[1], popt[3], popt[5], ))
+        false_cumsum /= false_cumsum[-1]
+        if popt[2] < popt[3]:
+            true_cumsum, false_cumsum = false_cumsum, true_cumsum
+        fpr = 1-false_cumsum
+        tpr = 1-true_cumsum
+        return popt, th_, fpr, tpr
+    except:
+        return None, None, None, None
 
 def mp_logger(q:Queue, logfile:Path):
     """write log to file in multiprocessing.Pool.
