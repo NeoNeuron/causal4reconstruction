@@ -1,24 +1,28 @@
 # Pairwise Causality Measure onto Pulse-output Signals
 
+Original code for paper: "Quantitative relations among causality measures with applications to pulse-output nonlinear network reconstruction"
 
 ## Requirements
-#### C/C++ Dependencies:
+
+### C/C++ Dependencies
+
 - [`Eigen`](https://eigen.tuxfamily.org): library of vector/matrix operation
-- [`boost`](http://www.boost.org/users/download/): containing library used for argparsers. 
-#### Python
-- [Anaconda]()
-- [Numpy]()
-- [Matplotlib]()
-- [Scipy]()
-- [Sci-kit Learn]()
+- [`boost`](http://www.boost.org/users/download/): containing library used for argparsers.
+
+### Python
+
+Numpy, Matplotlib, Scipy, Sci-kit Learn, Seaborn, Brian2
 
 ## Installation
+
 ### Compile C/C++ modules
+
 ```bash
 make all -j
 ```
 
-### Install python utilities
+### Install Python utilities
+
 ```bash
 pip install -e .
 ```
