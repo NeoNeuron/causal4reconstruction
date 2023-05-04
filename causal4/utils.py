@@ -246,64 +246,36 @@ def compress_data(path:Path=Path('./HH/data/EE/N=3/'), T:float=1e7, dry_run:bool
     log_process.join()
     log_process.close()
 
-
-def create_np_array_from_shared_mem(
-    shared_mem: SharedMemory, shared_data_dtype: np.dtype, shared_data_shape: Tuple[int, ...]
-) -> np.ndarray:
-    """create numpy array from shared memory.
-
-    Args:
-        shared_mem (SharedMemory): shared memory.
-        shared_data_dtype (np.dtype): dtype of numpy.array to generate.
-        shared_data_shape (Tuple[int, ...]): shape of numpy.array to generate.
-
-    Returns:
-        np.ndarray: generated numpy.array.
-    """
-    arr = np.frombuffer(shared_mem.buf, dtype=shared_data_dtype)
-    arr = arr.reshape(shared_data_shape)
-    return arr
-
-def scan_fu_process(
-    ff:np.ndarray, fufu:np.ndarray, i:int, j:int, 
-    pm_causal:dict,
-    run_times:int, shuffle:bool, 
-    shared_mem: SharedMemory, shared_dtype:np.dtype, shared_shape:Tuple[int, ...]
-    ):
-    if ff.shape != shared_shape[:2]:
-        raise RuntimeError("Shape of shared memeory doesn't consist with shape of parameter set.")
-    arr = create_np_array_from_shared_mem(shared_mem, shared_dtype, shared_shape)
-    _f, _fu = ff[i,j], fufu[i,j]
+def scan_fu_process(dtype:str, f:float, fu:float, pm_causal:dict,
+    run_times:int, shuffle:bool, use_exists:bool=True):
     _pm_causal = pm_causal.copy()
-    _pm_causal['fname']=_pm_causal['fname'].split('f=')[0]+f'f={_f:.3f}u={_fu/_f:.3f}'
-    cau = CausalityIO(dtype='HH', N=_pm_causal['Ne']+_pm_causal['Ni'], **_pm_causal)
+    _pm_causal['fname']=_pm_causal['fname'].split('f=')[0]+f'f={f:.3f}u={fu/f:.3f}'
+    N = _pm_causal['Ne']+_pm_causal['Ni']
+    cau = CausalityIO(dtype='HH', N=N, **_pm_causal)
+    fname_buff = get_fname(dtype, f'data/EE/N={N:d}/', spk_fname=_pm_causal['fname'], **_pm_causal)
+    arr = np.zeros((run_times, N, N), dtype=float)
     for idx in range(run_times):
-        run(False, shuffle, **_pm_causal)
-        if shuffle:
-            arr[i,j,idx,:,:]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
+        if Path(fname_buff).exists() and use_exists:
+            pass
         else:
-            arr[i,j,idx,:,:]=cau.load_from_single(_pm_causal['fname'], 'TE')
-    del arr  # delete np array so the shared memory can be deallocated
+            run(False, shuffle, **_pm_causal)
+        if shuffle:
+            arr[idx]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
+        else:
+            arr[idx]=cau.load_from_single(_pm_causal['fname'], 'TE')
+    return arr
 
 from .Causality import get_fname
 
-def scan_s_process(
-    dtype:str,
-    ss:np.ndarray, i:int, 
-    pm_causal:dict,
-    run_times:int, shuffle:bool, 
-    shared_mem: SharedMemory, shared_dtype:np.dtype, shared_shape:Tuple[int, ...],
-    use_exists:bool=False):
-    if ss.shape != shared_shape[:1]:
-        raise RuntimeError("Shape of shared memeory doesn't consist with shape of parameter set.")
-    arr = create_np_array_from_shared_mem(shared_mem, shared_dtype, shared_shape)
-    _s = ss[i]
+def scan_s_process(dtype:str, s:float, pm_causal:dict,
+    run_times:int, shuffle:bool, use_exists:bool=False):
     _pm_causal = pm_causal.copy()
     fname = _pm_causal['fname']
     begin = fname.find('s=')
     end = fname.find('f=')
-    _pm_causal['fname'] = fname.replace(fname[begin:end], f's={_s:.3f}')
+    _pm_causal['fname'] = fname.replace(fname[begin:end], f's={s:.3f}')
     N = _pm_causal['Ne']+_pm_causal['Ni']
+    arr = np.zeros((run_times, N, N), dtype=float)
     cau = CausalityIO(dtype=dtype, N=N, **_pm_causal)
     fname_buff = get_fname(dtype, f'data/EE/N={N:d}/', spk_fname=_pm_causal['fname'], **_pm_causal)
     for idx in range(run_times):
@@ -312,10 +284,10 @@ def scan_s_process(
         else:
             run(False, shuffle, **_pm_causal)
         if shuffle:
-            arr[i,idx,:,:]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
+            arr[idx]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
         else:
-            arr[i,idx,:,:]=cau.load_from_single(_pm_causal['fname'], 'TE')
-    del arr  # delete np array so the shared memory can be deallocated
+            arr[idx]=cau.load_from_single(_pm_causal['fname'], 'TE')
+    return arr
 
 if __name__ == '__main__':
     pass
