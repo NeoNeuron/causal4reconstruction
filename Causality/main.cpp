@@ -39,6 +39,7 @@ int main(int argc, char **argv)
         ("matrix_name", po::value<string>()->default_value("./"), "filename of connectivity matrix.")
         ("path_input", po::value<string>()->default_value("./"), "path for input data file")
         ("path_output", po::value<string>()->default_value("./"), "path for output data file")
+        ("n_thread,j", po::value<int>()->default_value(1), "number of threads for causality estimation")
         ;
     // create variable map
     po::variables_map vm;

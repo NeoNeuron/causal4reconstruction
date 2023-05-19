@@ -363,7 +363,7 @@ void Run_model()
 			for (int i = 0; i < N; i++)
 				total_fire_num += neu[i].fire_num;
 			printf("mean rate (Hz) = %0.2f  ", total_fire_num / t * 1e3 / N);
-			printf("Time cost is %0.2f s, run time is %0.2f s\n", double(te - ts0) / CLOCKS_PER_SEC, t);
+			printf("Time cost is %0.0f s, run time is %0.4e s\n", double(te - ts0) / CLOCKS_PER_SEC, t);
 		}
 
 		if (record_data[1] && t > Record_v_start && t <= Record_v_end && t - last_record_t >= 0.2-1e-5) // for library method

@@ -2,6 +2,7 @@
 CPPFLAGS = --std=c++11 -w -I $(DIR_INC) -I HH
 CXXFLAGS = -g -O2
 LDLIBS = -lboost_program_options
+OPENMP = -fopenmp
 # define variable path
 DIR_INC = include
 DIR_SRC = HH Causality HHcon Lorenz Lcon Logistic FN ML 
@@ -23,7 +24,7 @@ BIN := $(DIR_BIN)/calCausality $(DIR_BIN)/simHH $(DIR_BIN)/simHHcon $(DIR_BIN)/s
 all : $(BIN)
 
 $(DIR_BIN)/calCausality : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Causality)
-	$(CXX) $(CPPFLAGS) Causality/main.cpp -o $(DIR_BIN)/calCausality $(LDLIBS)
+	$(CXX) $(CPPFLAGS) Causality/main.cpp -o $(DIR_BIN)/calCausality $(LDLIBS) $(OPENMP)
 
 $(DIR_BIN)/simHH : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_HH) 
 	$(CXX) $(CPPFLAGS) HH/main.cpp -o $(DIR_BIN)/simHH $(LDLIBS)

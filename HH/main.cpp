@@ -100,6 +100,7 @@ int main(int argc,char **argv) {
 	seed2 = seed1;  // Initialization & Poisson
 	Initialization(seed0, seed2);
 
+  int T_Max_current_run = T_Max;
 	t0 = clock();
 	if (Lyapunov)
 		MLE = Largest_Lyapunov(seed2, 1, T_step);
@@ -113,7 +114,7 @@ int main(int argc,char **argv) {
 	for (int i = 0; i < N; i++)
 		total_fire_num[i < NE ? 0 : 1] += neu[i].fire_num;
 
-	mean_fire_rate = (total_fire_num[0] + total_fire_num[1]) / T_Max * 1000 / N; //(Hz)
+	mean_fire_rate = (total_fire_num[0] + total_fire_num[1]) / T_Max_current_run * 1000 / N; //(Hz)
 	printf("mean rate (Hz) = %0.2f ", mean_fire_rate);
 	printf("(E : %.3f, I : %.3f)\n", total_fire_num[0] / T_Max * 1000 / NE, total_fire_num[1] / T_Max * 1000 / NI);
 

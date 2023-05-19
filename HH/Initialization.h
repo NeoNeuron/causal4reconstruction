@@ -417,11 +417,12 @@ void Initialization(long &seed0,long &seed2)
 			getchar();// system("pause");
 			exit(1);
 		}
+		printf("loading neural states from file...\n");
 		for (int i=0; i < N; i++) {
 			fread(&neu[i], sizeof(struct neuron), 1, fp_buff);
 			neu[i].Poisson_input_time = new double[int(T_step * 100 * 2) + 5];
 			neu[i].Poisson_input_num = -1;
-			if (~strcmp(save_mode, "w")) {
+			if (strcmp(save_mode, "w")==0) {
 				neu[i].t = 0;
 				neu[i].fire_num = 0;
 				neu[i].last_fire_time = -1e5;

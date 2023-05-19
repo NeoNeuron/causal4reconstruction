@@ -25,6 +25,8 @@ void Read_parameters(po::variables_map& vm)
 	strcpy(path_input,    vm["path_input"].as<string>().c_str());
 	strcpy(path_output,  vm["path_output"].as<string>().c_str());
 
+	num_threads_openmp = vm["n_thread"].as<int>();
+
 	if (N == NE) {
 		strcat(path_input,  "EE/N=");
 		strcat(path_output, "EE/N=");

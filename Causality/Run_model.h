@@ -77,8 +77,6 @@ void compute_p(int data_length, int y, int x)  // y-->x  XX-Y- 101
 
 void Run_model()
 {
-	num_threads_openmp = N >= 8 ? 8 : 4;
-
 	int read_repeat, data_length, interval;
 	char str[200];
 	FILE *fp;
