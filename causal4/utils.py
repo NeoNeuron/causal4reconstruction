@@ -23,7 +23,78 @@ def save2bin(fname, data, fmode='wb', verbose=False, clearcache=False):
     if clearcache:
         _clearcache()
     if verbose:
-        print(f">> save to {fname:s}")
+        print(f">> save to {str(fname):s}")
+
+def prepare_save_spikes(ts, spk0, *args, **kwargs):
+    """convert a binary spiking raster to an array of spike 
+        evnets data of network. Desiged for compatibility 
+        with BrainPy simulation.
+
+    Args:
+        ts (array): time sequence of simulation
+        spk0 (array): bool array of spiking raster of network
+
+    Returns:
+        array: spiking events of the network
+    """
+    spk0 = np.array(spk0)
+    spk_idx = np.array(np.where(spk0))
+    spk_time_total = np.zeros_like(spk_idx, dtype=float)
+    spk_time_total[0,:] = ts[spk_idx[0,:]]
+    spk_time_total[1,:] = spk_idx[1,:]
+    if args:
+        n = spk0.shape[1]
+        for spk in args:
+            spk = np.array(spk)
+            spk_idx = np.array(np.where(spk))
+            spk_time = np.zeros_like(spk_idx, dtype=float)
+            spk_time[0,:] = ts[spk_idx[0,:]]
+            spk_time[1,:] = spk_idx[1,:] + n
+            spk_time_total = np.concatenate([spk_time_total, spk_time], axis=1)
+            n += spk.shape[1]
+        spk_time_total = spk_time_total[:,np.argsort(spk_time_total[0])]
+    return spk_time_total
+
+def conn2bin(net, sparse=True):
+    """convert the connectviity matrix in EI network based on BrainPy
+        to a whole connectivity matrix
+
+    Args:
+        net (bp.Networks): EI network built with BrainPy
+        sparse (bool, optional): store in sparse matrix. Defaults to True.
+
+    Returns:
+        conn_mat (array): connectivity matrix
+    """
+    E2E, E2I, I2E, I2I = net.E2E, net.E2I, net.I2E, net.I2I
+    if not sparse:
+        Erows = np.concatenate([E2E.conn.require('conn_mat').astype(float), E2I.conn.require('conn_mat').astype(float)], axis=1)
+        Irows = np.concatenate([I2E.conn.require('conn_mat').astype(float), I2I.conn.require('conn_mat').astype(float)], axis=1)
+        conn_mat = np.concatenate([Erows, Irows], axis=0).astype(float)
+    else:
+        pre_ids_all, post_ids_all = E2E.conn.require('pre_ids', 'post_ids')
+        weights_all = np.ones_like(pre_ids_all)*net.w_e2e
+        pre_ids, post_ids = E2I.conn.require('pre_ids', 'post_ids')
+        weights = np.ones_like(pre_ids)*net.w_e2i
+        post_ids += net.num_e
+        pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
+        post_ids_all = np.concatenate([post_ids_all, post_ids])
+        weights_all = np.concatenate([weights_all, weights])
+        pre_ids, post_ids = I2E.conn.require('pre_ids', 'post_ids')
+        weights = np.ones_like(pre_ids)*(-net.w_i2e)
+        pre_ids += net.num_e
+        pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
+        post_ids_all = np.concatenate([post_ids_all, post_ids])
+        weights_all = np.concatenate([weights_all, weights])
+        pre_ids, post_ids = I2I.conn.require('pre_ids', 'post_ids')
+        weights = np.ones_like(pre_ids)*(-net.w_i2i)
+        pre_ids += net.num_e
+        post_ids += net.num_e
+        pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
+        post_ids_all = np.concatenate([post_ids_all, post_ids])
+        weights_all = np.concatenate([weights_all, weights])
+        conn_mat = np.vstack([pre_ids_all, post_ids_all, weights_all])
+    return conn_mat
 
 def plot_spk_fft(spk_data:np.ndarray, dt:float=0.5, ax:Axes=None,
     label:str=None)->Axes:

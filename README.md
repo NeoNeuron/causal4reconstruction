@@ -24,7 +24,11 @@ make all -j
 ### Install Python utilities
 
 ```bash
+conda create --name my_environment --file requirements.txt
+conda activate my_environment
 pip install -e .
+pip install -U brainpy
+pip install brainpylib
 ```
 
 ## Usage

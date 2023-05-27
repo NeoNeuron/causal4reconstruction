@@ -4,23 +4,24 @@ void read_connect_matrix(double **connect_matrix, double **connect_matrix_streng
 	char str[200];
 	FILE *fp;
 
-	//strcpy(str, path_input), strcat(str, matrix_name);
+	strcpy(str, path_input), strcat(str, matrix_name);
 
-	strcpy(str, path_input);
-	int id_p1 = 0, id_p2 = 0;
-	for (int i = 0; i < strlen(input_filename); i++)
-	{
-		if (input_filename[i] == 'p')
-			id_p1 = i;
-		if (input_filename[i] == 's' && i - id_p1 < 8)
-			id_p2 = i;
-	}
-	strcpy(matrix_name, "connect_matrix-");
-	char chh[10] = "";
-	for (int i = id_p1; i < id_p2; i++)
-		chh[i - id_p1] = input_filename[i];
-	strcat(matrix_name, chh), strcat(matrix_name, "0.dat");
-	strcat(str, matrix_name);
+	// strcpy(str, path_input);
+	// int id_p1 = 0, id_p2 = 0;
+	// for (int i = 0; i < strlen(input_filename); i++)
+	// {
+	// 	if (input_filename[i] == 'p')
+	// 		id_p1 = i;
+	// 	if (input_filename[i] == 's' && i - id_p1 < 8)
+	// 		id_p2 = i;
+	// }
+	// strcpy(matrix_name, "connect_matrix-");
+	// char chh[10] = "";
+	// for (int i = id_p1; i < id_p2; i++)
+	// 	chh[i - id_p1] = input_filename[i];
+	// strcat(matrix_name, chh), strcat(matrix_name, "0.dat");
+	// strcat(str, matrix_name);
+	// printf("conn_filename=%s\n", str);
 
 
 

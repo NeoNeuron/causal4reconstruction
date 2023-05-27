@@ -509,11 +509,23 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
 
     # load connectivity matrix 
     fname_conn = pm_causal['path_output']+f"EE/N={N:d}/" + pm_causal['con_mat']
-    conn = np.fromfile(fname_conn, dtype=float)[:int(N*N)].reshape(N,N).astype(bool)
+    conn_raw = np.fromfile(fname_conn, dtype=float)
+    if conn_raw.shape[0] >= N*N:
+        conn = conn_raw[:int(N*N)].reshape(N,N).astype(bool)
+        if conn_raw.shape[0] > N*N:
+            conn_weight = conn_raw[int(N*N):].reshape(N,N)
+        else:
+            conn_weight = None
+    else:
+        conn_raw = conn_raw.reshape(3,-1)
+        conn = np.zeros((N,N), dtype=bool)
+        conn_weight = np.zeros((N,N), dtype=float)
+        conn[conn_raw[0].astype(int), conn_raw[1].astype(int)] = True
+        conn_weight[conn_raw[0].astype(int), conn_raw[1].astype(int)] = conn_raw[2]
+
     ratio = np.sum(conn[inf_mask])/np.sum(inf_mask)
     # plot the distribution of connectivity weight if exist
-    conn_weight = np.fromfile(fname_conn, dtype=float)[int(N*N):]
-    if conn_weight.shape[0] > 0:
+    if conn_weight is not None:
         conn_weight= conn_weight.reshape(N,N)
         axins = inset_axes(ax[0], width="100%", height="100%",
                     bbox_to_anchor=(.05, .40, .45, .3),
@@ -548,7 +560,8 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
 
     data_dp = cau.load_from_single(fname, 'Delta_p')
     data_dp = np.log10(np.abs(data_dp))
-    counts, bins = np.histogram(data_dp[inf_mask], bins=100, density=True)
+    nan_mask = (~np.isinf(data_dp))*(~np.isnan(data_dp))
+    counts, bins = np.histogram(data_dp[inf_mask*nan_mask], bins=100, density=True)
     for key in fig_data.keys():
         if key == 'hist':
             fig_data[key]['dp']  = counts.copy()
@@ -568,8 +581,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         if key in ('TE', 'MI'):
             log_cau += np.log10(2)
         counts_total = np.zeros(100)
+        nan_mask = (~np.isinf(log_cau))*(~np.isnan(log_cau))
         for mask, linestyle, ratio_, hist_key in zip((conn, ~conn), ('-', ':'), (ratio, 1-ratio), ('hist_conn', 'hist_disconn')):
-            log_TE_buffer = log_cau[mask*inf_mask]
+            log_TE_buffer = log_cau[mask*inf_mask*nan_mask]
             counts, bins = np.histogram(log_TE_buffer, bins=100, range=hist_range,density=True)
             counts_total += counts*ratio_
             fig_data[hist_key][key] = counts*ratio_
@@ -583,7 +597,7 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         # th_idx = dict(TE=0, GC=1, MI=2, CC=3)
         # th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
         # TODO: Fix inaccurate double peak separation for some cases.
-        th_km = kmeans_1d(log_cau[inf_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
+        th_km = kmeans_1d(log_cau[inf_mask*nan_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
         fig_data['kmean_th'][key] = th_km
         ax_hist[0].axvline(th_km, ymax=0.9, lw=1, color=line_rc[key]['color'])
         conn_recon = log_cau >= th_km
@@ -617,9 +631,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
             fig_data['ppv_gauss'][key] = np.nan
             fig_data['hist_error'][key] = np.nan
 
-        fpr, tpr, _ = roc_curve(conn[inf_mask], log_cau[inf_mask])
+        fpr, tpr, _ = roc_curve(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask])
         fig_data['roc_gt'][key] = np.vstack((fpr, tpr))
-        label = line_rc[key]['label'] + f" : {roc_auc_score(conn[inf_mask], log_cau[inf_mask]):.3f}"
+        label = line_rc[key]['label'] + f" : {roc_auc_score(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask]):.3f}"
         ax[0].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
     # print acc, 
@@ -659,13 +673,17 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
     Returns:
         matplotlib.Figure: figure containing raster plot
     """
-    spk_fname = f"{pm_causal['path_input']}EE/N=100/{pm_causal['fname']:s}_spike_train.dat"
-    n_time = 50
     N = int(pm_causal['Ne']+pm_causal['Ni'])
+    spk_fname = f"{pm_causal['path_input']}EE/N={N:d}/{pm_causal['fname']:s}_spike_train.dat"
+    n_time = 50
     with open(spk_fname, 'rb') as f:
-        spk_data = np.array(struct.unpack('d'*2*N*n_time, f.read(8*2*N*n_time))).reshape(-1,2)
+        data_buff = f.read(8*2*N*n_time)
+        data_len = int(len(data_buff)/16)
+        spk_data = np.array(struct.unpack('d'*2*data_len, data_buff)).reshape(-1,2)
         while spk_data[-1,0] < xrange[1]:
-            spk_data_more = np.array(struct.unpack('d'*2*N*n_time, f.read(8*2*N*n_time))).reshape(-1,2)
+            data_buff = f.read(8*2*N*n_time)
+            data_len = int(len(data_buff)/16)
+            spk_data_more = np.array(struct.unpack('d'*2*data_len, data_buff)).reshape(-1,2)
             spk_data = np.concatenate((spk_data, spk_data_more), axis=0)
     if ax is None:
         fig, ax = plt.subplots(1,1,figsize=(12,3))

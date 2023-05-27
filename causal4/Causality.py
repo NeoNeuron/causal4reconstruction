@@ -343,6 +343,7 @@ def run(verbose=False, shuffle=False, **kwargs):
         con_mat = "--matrix_name %s",
         path_input = "--path_input %s",
         path_output = "--path_output %s",
+        n_thread = "-j %d",
     )
     cml_options = './bin/calCausality -c ./Causality/NetCau_parameters.ini '
     for key in kwargs:
