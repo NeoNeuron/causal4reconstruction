@@ -683,6 +683,9 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
         while spk_data[-1,0] < xrange[1]:
             data_buff = f.read(8*2*N*n_time)
             data_len = int(len(data_buff)/16)
+            if data_len == 0:
+                print('reaching end of file')
+                break
             spk_data_more = np.array(struct.unpack('d'*2*data_len, data_buff)).reshape(-1,2)
             spk_data = np.concatenate((spk_data, spk_data_more), axis=0)
     if ax is None:
