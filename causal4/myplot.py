@@ -675,7 +675,7 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
     """
     N = int(pm_causal['Ne']+pm_causal['Ni'])
     spk_fname = f"{pm_causal['path_input']}EE/N={N:d}/{pm_causal['fname']:s}_spike_train.dat"
-    n_time = 50
+    n_time = 1000
     with open(spk_fname, 'rb') as f:
         data_buff = f.read(8*2*N*n_time)
         data_len = int(len(data_buff)/16)
@@ -692,7 +692,8 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
         fig, ax = plt.subplots(1,1,figsize=(12,3))
     else:
         fig = ax.get_figure()
-    ax.plot(spk_data[:, 0], spk_data[:, 1], '|')
+    mask = (spk_data[:,0] > xrange[0]) * (spk_data[:,0] < xrange[1])
+    ax.plot(spk_data[mask, 0], spk_data[mask, 1], '|')
     ax.set_xlim(*xrange)
     ax.set_xlabel('Time (ms)')
     print(f"mean firing rate is {spk_data.shape[0]/spk_data[-1,0]/N*1000.:.3f} Hz")
