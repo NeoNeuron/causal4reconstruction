@@ -2,6 +2,10 @@
 //		Find Cubic Hermite roots by bisection search
 //-----------------------------------------------------------------------------
 
+#ifndef __FIND_CUBIC_HERMITE_ROOT__
+#define __FIND_CUBIC_HERMITE_ROOT__
+#include "common_header.h"
+
 double Cubic_Hermite_interpoation(double x0, double x1, double f0, double f1,
 	double df0, double df1, double x)
 {
@@ -175,3 +179,4 @@ double cubic_hermite_real_root(double x1, double x2,  // when x2-x1 is too close
 	//fprintf(stderr, "No root in this interval\n");
 	return NAN;
 }
+#endif // !__CUBIC_HERMITE_H__

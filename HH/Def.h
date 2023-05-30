@@ -65,7 +65,7 @@ int RecordFP = 0;					// record fire pattern 0101000101
 int TrialID = 0;			   // Default: 0.  for multiple trials with fixed CS and change Poisson seeds 
 char fi_neu_state[200];			// path to load neuron states
 char fo_neu_state[200];			// path to save neuron states
-char save_mode[10];
+char save_mode[2];
 
 //-----------------------------------------------------------------------------
 //		Netwrok Information

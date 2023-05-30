@@ -28,7 +28,7 @@ $(DIR_BIN)/calCausality : $(OBJS_Causality) $(DIR_BIN) $(HEADERS_COMMON) $(HEADE
 	$(CXX) $(CPPFLAGS) -o $(DIR_BIN)/calCausality $(OBJS_Causality) $(LDLIBS)
 
 $(DIR_BIN)/simHH : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_HH) 
-	$(CXX) $(CPPFLAGS) HH/main.cpp -o $(DIR_BIN)/simHH $(LDLIBS)
+	$(CXX) $(CPPFLAGS) -O2 HH/main.cpp -o $(DIR_BIN)/simHH $(LDLIBS)
 
 $(DIR_BIN)/simHHcon : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_HHcon) 
 	$(CXX) $(CPPFLAGS) HHcon/main.cpp -o $(DIR_BIN)/simHHcon $(LDLIBS)

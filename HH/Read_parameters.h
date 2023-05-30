@@ -199,7 +199,7 @@ void out_put_filename()
 	strcpy(fo_neu_state, str1);
 
 	// create FILE object to save spike train and voltage
-    char open_mode[2];
+    char open_mode[3];
     strcpy(open_mode, save_mode), strcat(open_mode, "b");
 	if (record_data[0])
 	{
