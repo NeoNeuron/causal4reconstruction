@@ -3,20 +3,18 @@
 //		Comments
 //-----------------------------------------------------------------------------
 
-
-
 #define _CRT_SECURE_NO_WARNINGS
 #include "common_header.h"
-#include "def.h"
-#include "Read_parameters.h"
-#include "New_delete.h"
 #include "Kmean.h" 
 #include "Compute_Causality.h"
 #include "Run_model.h"
+std::random_device rd;
+std::mt19937 rng(rd());
 
 int main(int argc, char **argv)
 {
-    clock_t t0, t1;
+    bool verbose = false;
+    bool shuffle_flag = false;
     // Config program options:
     po::options_description generic("Generic Options");
     generic.add_options()
@@ -71,10 +69,243 @@ int main(int argc, char **argv)
     // string dir;
     // dir = vm["prefix"].as<string>();
 
-    Read_parameters(vm);
-    Output_filename();
+    // define variables
+    int num_threads_openmp;
 
-    Run_model();
+    // --------------------------------------
+    int N, NE, NI;			// total neuron number
+    double T_Max, DT;		// total T_Max, division into DT length
+    int auto_T_max = 1;
+    double bin;				// bin size
+    int order[3];			// order x , order y , max order +1
+    int k;					// k = order_y
+    double delay;			// delay: x(t+delay+bin), x(t+delay), y(t)
+    int tau;				//tau=delay/bin,  delay: x(n+tau+1), x(n+tau), y(n)
+    double L, accuracy[4], threshold[4];
+
+    char input_filename[200], output_filename[200], matrix_name[100];
+    char path_input[200], path_output[200];
+    int m[2];		// pow(2.0,order_x) and pow(2,order_y)
+
+    // --------------------------------------
+
+    FILE *FP;           // output pairwise TE. (TE,y,x,px,py,p0,dp1,dp2,...,dpk,delta,te_order5, GC,sumDMI,sumNCC^2,appxo for 2sumDMI)
+					// y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. delta = p(x = 1,y- = 1)/(p(x = 1)p(y- = 1)) - 1
+
+    // load parameters
+    char ch[100];
+
+	NE = vm["NE"].as<int>();
+	NI = vm["NI"].as<int>();
+	N = NE + NI;
+	T_Max = vm["T_Max"].as<double>();
+	DT = vm["DT"].as<double>();
+	// if (DT <= 1e5)
+	// 	DT = 1e5;
+	auto_T_max = vm["auto_T_max"].as<int>();
+
+
+	bin = vm["bin"].as<double>();
+    vector<int> order_vec;
+	str2vec(vm["order"].as<string>(), order_vec);
+	for (int i = 0; i < 2; i++)
+		order[i] = order_vec[i];
+
+	delay = vm["sample_delay"].as<double>();
+
+	strcpy(input_filename,  vm["filename"].as<string>().c_str());
+	strcpy(matrix_name,  vm["matrix_name"].as<string>().c_str());
+	strcpy(path_input,    vm["path_input"].as<string>().c_str());
+	strcpy(path_output,  vm["path_output"].as<string>().c_str());
+
+	num_threads_openmp = vm["n_thread"].as<int>();
+
+	if (N == NE) {
+		strcat(path_input,  "EE/N=");
+		strcat(path_output, "EE/N=");
+	} else if (N == NI) {
+		strcat(path_input,  "II/N=");
+		strcat(path_output, "II/N=");
+	} else {
+		strcat(path_input,  "EI/N=");
+		strcat(path_output, "EI/N=");
+	}
+
+	sprintf(ch, "%d", N), strcat(path_input, ch), strcat(path_input, "/");
+	sprintf(ch, "%d", N), strcat(path_output, ch), strcat(path_output, "/");
+
+    // Output_filename();
+    tau = int(delay / bin);
+	k = order[1];
+	m[0] = int(pow(2.0, order[0]));
+	m[1] = int(pow(2.0, order[1]));
+	order[2] = order[0] > order[1] ? order[0] : order[1];
+	order[2]++;
+
+	char str[200];
+
+	strcpy(str, path_output);
+
+	strcat(str, "TGIC2.0-K="), sprintf(ch, "%d", order[0]), strcat(str, ch);
+	strcat(str, "_"), sprintf(ch, "%d", order[1]), strcat(str, ch);
+
+	strcat(str, "bin="), sprintf(ch, "%0.2f", bin), strcat(str, ch);
+	strcat(str, "delay="), sprintf(ch, "%0.2f", delay), strcat(str, ch);
+	strcat(str, "T="), sprintf(ch, "%.2e", T_Max), strcat(str, ch);
+	strcat(str, "-"), strcat(str, input_filename);
+
+	//strcat(str, "T"), sprintf(ch, "%d", int(T_Max / DT + 0.5)), strcat(str, ch);
+	if (shuffle_flag)
+		strcat(str, "_shuffle");
+	strcat(str, ".dat");
+
+	strcpy(output_filename, str);
+
+    // Run_model();
+    int read_repeat, data_length, interval;
+	FILE *fp;
+	clock_t t0, t1, t2, t3;
+
+	t0 = clock();
+
+	strcpy(str, path_input), strcat(str, input_filename), strcat(str, "_spike_train.dat");
+	fp = fopen(str, "rb");
+	if (fp == NULL)
+	{
+		printf("Error in read file: %s\n%s\n", path_input, input_filename);
+		exit(0);
+	}
+
+	//	 compute the probability distribution	
+	if(auto_T_max)
+		T_Max = Find_T_Max(fp, verbose); // find the data time T_Max
+
+	if (T_Max / DT <= 0.99)
+	{
+		printf("Warning! T_max=%0.3e < DT=%0.3e!\n", T_Max, DT);
+		printf("path:%s\nfilename:%s\n", path_input, input_filename);
+		T_Max = DT;
+	}
+	read_repeat = int(T_Max / DT + 0.01);
+
+	data_length = int(DT / bin);
+
+    // X[id][0/1]  | size=(N, DT/bin+1) | partial binarized spike train
+	vector<vector<unsigned int> > X(N, vector<unsigned int>(data_length, 0));
+
+    // z[i-->j][p] | size=(N*N, 2**(1+order[0]+order[1]) | pair wise TE's p(x,x-,y-)
+	vector<vector<double> > z(N*N, vector<double>(2 * m[0] * m[1], 0));
+
+	for (int id = 0; id < read_repeat; id++)
+	{
+		read_data(fp, 1.0*id*data_length*bin, 1.0*(1 + id)*data_length*bin, bin, X, N);
+		//Notice!  id*data_length may larger than MAX INT 2147483647
+
+		// shuffling data
+		if (shuffle_flag) {
+			for (int neu_id=0; neu_id < N; neu_id ++)
+				shuffle(&X[neu_id][0], &X[neu_id][data_length], rng);
+		}
+		
+		#pragma omp parallel for num_threads(num_threads_openmp)
+		for (int i = 0; i < N*N; i++)  // y-->x
+		{
+			int x, y;
+			y = i / N;
+			x = i % N;
+
+			// Comment below the calculate auto-correlation
+			if (y == x)
+				continue;
+			compute_p(X, y, x, N, z, tau, order, m);
+		}
+	}
+	fclose(fp);
+
+	L = 0;
+	for (int i = 0; i < 2 * m[0] * m[1]; i++)
+		L += z[1][i];
+
+	for (int i = 0; i < N*N; i++)
+		for (int j = 0; j < 2 * m[0] * m[1]; j++)
+			z[i][j] /= L;
+
+	// compute TE(x_n+1+tau,x_n+tau,y_n), GC(x_n+1+tau,x_n+tau,y_n) 
+	// sum DMI(x_n+1+tau,y_n), CC(x_n+1+tau,y_n)
+
+	FP = fopen(output_filename, "wb");
+	if (verbose)
+		printf("save to file :%s\n\n", output_filename);
+
+    // TE[N][N], GC, sum of DMI, sum of NCC^2 y-->x	
+    // 2TE,2DMI, [N][N], y-->x
+	vector<vector<double> > TE(N, vector<double>(N, 0));
+	vector<vector<double> > GC(N, vector<double>(N, 0));
+	vector<vector<double> > DMI(N, vector<double>(N, 0));
+	vector<vector<double> > NCC(N, vector<double>(N, 0));
+	vector<vector<double> > TE_2(N, vector<double>(N, 0));
+	vector<vector<double> > DMI_2(N, vector<double>(N, 0));
+	compute_causality(z, order, m, N, FP, TE, GC, DMI, NCC, TE_2, DMI_2);
+
+	char cch[4][100] = { {"GC"},{"sum NCC"},{"2 sum DMI"},{"2TE"} };
+
+	if (N <= 10) //revise
+	{
+		if (verbose) {
+			Print(TE_2, cch[3]);
+
+			//Print(TE_2, cch[3]);
+			//Print(GC, cch[0]);
+			//Print(DMI_2, cch[2]);
+			//Print(NCC_2, cch[1]);
+		}
+	}
+
+    // conn_file_fname
+	strcpy(str, path_input), strcat(str, matrix_name);
+
+	// strcpy(str, path_input);
+	// int id_p1 = 0, id_p2 = 0;
+	// for (int i = 0; i < strlen(input_filename); i++)
+	// {
+	// 	if (input_filename[i] == 'p')
+	// 		id_p1 = i;
+	// 	if (input_filename[i] == 's' && i - id_p1 < 8)
+	// 		id_p2 = i;
+	// }
+	// strcpy(matrix_name, "connect_matrix-");
+	// char chh[10] = "";
+	// for (int i = id_p1; i < id_p2; i++)
+	// 	chh[i - id_p1] = input_filename[i];
+	// strcat(matrix_name, chh), strcat(matrix_name, "0.dat");
+	// strcat(str, matrix_name);
+	// printf("conn_filename=%s\n", str);
+
+	//  reconstruction & kmean	
+	Kmean(TE_2, threshold[0], accuracy[0], str, L, NE, NI);
+	Kmean(GC, threshold[1], accuracy[1], str, L, NE, NI);
+	Kmean(DMI_2, threshold[2], accuracy[2], str, L, NE, NI);
+	Kmean(NCC, threshold[3], accuracy[3], str, L, NE, NI);
+	fwrite(&L, sizeof(double), 1, FP);
+	fwrite(&threshold, sizeof(double), 4, FP);
+	fwrite(&accuracy, sizeof(double), 4, FP);
+
+	fclose(FP);
+
+	t1 = clock();
+	if (verbose) {
+		printf("T_max=%0.2e L=%0.2e\n", T_Max, L);
+
+		for (int i = 0; i < 4; i++)
+			printf("th=%0.3e ", threshold[i]);
+		printf("\n");
+
+		for (int i = 0; i < 4; i++)
+			printf("accu=%0.2f ", accuracy[i]);
+		printf("\n");
+
+		printf("Total time=%0.3fs\n\n", double(t1 - t0) / CLOCKS_PER_SEC);
+	}
 
     return 0;
 }

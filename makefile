@@ -1,8 +1,7 @@
 # define compiler and path of libs
 CPPFLAGS = --std=c++11 -w -I $(DIR_INC) -I HH
-CXXFLAGS = -g -O2
-LDLIBS = -lboost_program_options
-OPENMP = -fopenmp
+CXXFLAGS = -fopenmp -g -O2 
+LDLIBS = -lboost_program_options -fopenmp
 # define variable path
 DIR_INC = include
 DIR_SRC = HH Causality HHcon Lorenz Lcon Logistic FN ML 
@@ -15,6 +14,8 @@ vpath %.h   $(DIR_SRC)
 HEADERS_COMMON := $(notdir $(wildcard $(DIR_INC)/*.h))
 HEADERS_HH := $(notdir $(wildcard HH/*.h))
 HEADERS_Causality := $(notdir $(wildcard Causality/*.h))
+SRCS_Causality = $(wildcard Causality/*.cpp)
+OBJS_Causality = $(SRCS_Causality:.cpp=.o)
 HEADERS_HHcon := $(notdir $(wildcard HHcon/*.h))
 HEADERS_Lorenz := $(notdir $(wildcard Lorenz/*.h))
 HEADERS_Lcon := $(notdir $(wildcard Lcon/*.h))
@@ -23,8 +24,8 @@ BIN := $(DIR_BIN)/calCausality $(DIR_BIN)/simHH $(DIR_BIN)/simHHcon $(DIR_BIN)/s
 .PHONY : all
 all : $(BIN)
 
-$(DIR_BIN)/calCausality : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Causality)
-	$(CXX) $(CPPFLAGS) Causality/main.cpp -o $(DIR_BIN)/calCausality $(LDLIBS) $(OPENMP)
+$(DIR_BIN)/calCausality : $(OBJS_Causality) $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Causality)
+	$(CXX) $(CPPFLAGS) -o $(DIR_BIN)/calCausality $(OBJS_Causality) $(LDLIBS)
 
 $(DIR_BIN)/simHH : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_HH) 
 	$(CXX) $(CPPFLAGS) HH/main.cpp -o $(DIR_BIN)/simHH $(LDLIBS)
