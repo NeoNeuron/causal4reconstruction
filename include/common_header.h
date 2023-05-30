@@ -14,6 +14,20 @@
 #include <fstream>
 #include <random>
 
+// Fast code for exp(x) in double precision
+#include "fmath.hpp"
+//#define exp(x) fmath::expd(x)
+
+template<typename Ty>
+inline Ty my_expd(const Ty &x)
+{ return exp(x); }
+
+template<>
+inline double my_expd(const double &x)
+{ return fmath::expd(x); }
+
+#define exp(x) my_expd(x)
+
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
