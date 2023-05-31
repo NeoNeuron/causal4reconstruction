@@ -16,12 +16,24 @@ int main(int argc, char **argv)
     bool verbose = false;
     bool shuffle_flag = false;
     // Config program options:
-    po::options_description generic("Generic Options");
+    po::options_description generic("Generic options");
     generic.add_options()
         ("help,h", "produce help message")
         ("verbose,v", po::bool_switch(&verbose), "show output")
         ("config,c", po::value<string>()->default_value("./Causality/NetCau_parameters.ini"), "config file, relative to prefix")
         ;
+    po::options_description data_structure(
+		R"(Data structure of output file:
+	The original data file contains N*N*(k+12)+9 double-type values.
+	The first N*N*(k+12) values are related to pairwise inferenced causality values, which are organized as follows:
+	For each pair of neurons (y,x), the following values are stored:
+		TE value, idx of y, idx of x, p(x=1), p(y=1), p(x = 1 | x- = 0, y- = 0),
+		\delta p_{y->x}: dp1,dp2,...,dpk,
+		\Delta p_m = p(x = 1,y- = 1)/(p(x = 1)p(y- = 1)) - 1,
+		te_order5, GC value, sum of TDMI over delays, sum of TDCC^2 over delays,
+		appxo for 2sumDMI.
+	The last 9 values are the length of time sereis (L), threshold for reconstruction based on 4 causality measures, reconstruction accuracy based on 4 causality measures.)"
+	);
     po::options_description config("Configs");
     config.add_options()
         ("filename,f", po::value<string>(), "filename of data file")
@@ -29,7 +41,7 @@ int main(int argc, char **argv)
         ("NI", po::value<int>()->default_value(0), "number of Inh. neurons")
         ("order", po::value<string>()->default_value("1 1"), "order of TE. Syntax: 'order_x order_y'; ")
         ("T_Max", po::value<double>()->default_value(1e7), "Maximum length of time series.")
-        ("DT", po::value<double>()->default_value(2e4), "Minimum length of time series.")
+        ("DT", po::value<double>()->default_value(1e5), "Minimum length of time series.")
         ("auto_T_max", po::value<int>()->default_value(1), "auto-adjust T_Max to the maximum time of the spike events.")
         ("bin", po::value<double>()->default_value(0.5), "time bin for causality calculation.")
         ("sample_delay", po::value<double>()->default_value(0.0), "tau := time delay")
@@ -47,6 +59,7 @@ int main(int argc, char **argv)
     po::notify(vm);
     if (vm.count("help")) {
         cout << generic << '\n';
+        cout << data_structure << '\n';
         cout << config << '\n';
         return 1;
     }
@@ -70,55 +83,40 @@ int main(int argc, char **argv)
     // dir = vm["prefix"].as<string>();
 
     // define variables
-    int num_threads_openmp;
+    int num_threads_openmp = vm["n_thread"].as<int>();
+
 
     // --------------------------------------
-    int N, NE, NI;			// total neuron number
-    double T_Max, DT;		// total T_Max, division into DT length
-    int auto_T_max = 1;
-    double bin;				// bin size
+	int NE = vm["NE"].as<int>();	// number of Exc. neurons
+	int NI = vm["NI"].as<int>();	// number of Inh. neurons
+    int N = NE + NI;				// total neuron number
+	double T_Max = vm["T_Max"].as<double>();	// total T_Max
+	double DT    = vm["DT"].as<double>();		// division into DT length
+	int auto_T_max = vm["auto_T_max"].as<int>();
+	double bin = vm["bin"].as<double>();		// bin size
     int order[3];			// order x , order y , max order +1
     int k;					// k = order_y
-    double delay;			// delay: x(t+delay+bin), x(t+delay), y(t)
-    int tau;				//tau=delay/bin,  delay: x(n+tau+1), x(n+tau), y(n)
+	double delay = vm["sample_delay"].as<double>();	
+		// delay: x(t+delay+bin), x(t+delay), y(t)
+    int tau = int(delay / bin);
+		// tau = delay/bin,  delay: x(n+tau+1), x(n+tau), y(n)
     double L, accuracy[4], threshold[4];
 
     char input_filename[200], output_filename[200], matrix_name[100];
     char path_input[200], path_output[200];
     int m[2];		// pow(2.0,order_x) and pow(2,order_y)
 
-    // --------------------------------------
+    FILE *FP;
 
-    FILE *FP;           // output pairwise TE. (TE,y,x,px,py,p0,dp1,dp2,...,dpk,delta,te_order5, GC,sumDMI,sumNCC^2,appxo for 2sumDMI)
-					// y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. delta = p(x = 1,y- = 1)/(p(x = 1)p(y- = 1)) - 1
-
-    // load parameters
-    char ch[100];
-
-	NE = vm["NE"].as<int>();
-	NI = vm["NI"].as<int>();
-	N = NE + NI;
-	T_Max = vm["T_Max"].as<double>();
-	DT = vm["DT"].as<double>();
-	// if (DT <= 1e5)
-	// 	DT = 1e5;
-	auto_T_max = vm["auto_T_max"].as<int>();
-
-
-	bin = vm["bin"].as<double>();
     vector<int> order_vec;
 	str2vec(vm["order"].as<string>(), order_vec);
 	for (int i = 0; i < 2; i++)
 		order[i] = order_vec[i];
 
-	delay = vm["sample_delay"].as<double>();
-
 	strcpy(input_filename,  vm["filename"].as<string>().c_str());
 	strcpy(matrix_name,  vm["matrix_name"].as<string>().c_str());
 	strcpy(path_input,    vm["path_input"].as<string>().c_str());
 	strcpy(path_output,  vm["path_output"].as<string>().c_str());
-
-	num_threads_openmp = vm["n_thread"].as<int>();
 
 	if (N == NE) {
 		strcat(path_input,  "EE/N=");
@@ -131,11 +129,11 @@ int main(int argc, char **argv)
 		strcat(path_output, "EI/N=");
 	}
 
+    char ch[100];
 	sprintf(ch, "%d", N), strcat(path_input, ch), strcat(path_input, "/");
 	sprintf(ch, "%d", N), strcat(path_output, ch), strcat(path_output, "/");
 
     // Output_filename();
-    tau = int(delay / bin);
 	k = order[1];
 	m[0] = int(pow(2.0, order[0]));
 	m[1] = int(pow(2.0, order[1]));

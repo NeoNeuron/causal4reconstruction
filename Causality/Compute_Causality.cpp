@@ -6,26 +6,28 @@
 using namespace Eigen;
 using namespace std;
 
-void compute_s(vector<vector<double> >& z, int *order, int *m, double *s, int id)
+void compute_s(vector<double>& z, int *order, int *m, double *s)
 {
-	int k = order[1];
-	s[3] = 0;	// p(x = 1)
+	// z := p(x, x-, y-)
+	int k = order[1];	// order of pre-synaptic neuron
+	s[3] = 0;			// p(x = 1)
 	for (int l = m[0] * m[1]; l < 2 * m[0] * m[1]; l++)
-		s[3] += z[id][l];
+		s[3] += z[l];
 
-	s[4] = 0;   // p(y-[l] = 1)
+	s[4] = 0;			// p(y-[n] = 1)  mean firing rate of post-synaptic neuron
 	for (int l = 0; l < m[0] * m[1]; l++)
-		s[4] += z[id][2 * l + 1];
+		s[4] += z[2 * l + 1];
 
-	double p0;
-	p0 = z[id][m[0] * m[1]] / (z[id][m[0] * m[1]] + z[id][0]);
+	double p0;	// p(x = 1 | x- = 0, y- = 0)
+	p0 = z[m[0] * m[1]] / (z[m[0] * m[1]] + z[0]);
 	s[5] = p0;
 
+	//  p(x = 1 | x- = 0, y-[k-i] = 1) - p(x = 1 | x- = 0, y- = 0)
 	for (int l = 1; l <= order[1]; l++)
 	{
 		int	id_y = int(pow(2.0, order[1] - l) + 0.01);
 
-		s[l + 5] = z[id][id_y + m[0] * m[1]] / (z[id][id_y + m[0] * m[1]] + z[id][id_y]);
+		s[l + 5] = z[id_y + m[0] * m[1]] / (z[id_y + m[0] * m[1]] + z[id_y]);
 		s[l + 5] -= p0;
 	}
 
@@ -35,8 +37,8 @@ void compute_s(vector<vector<double> >& z, int *order, int *m, double *s, int id
 	double p11 = 0, p10 = 0;
 	for (int l = 0; l < m[0]; l++)
 	{
-		p11 += z[id][l*m[1] * 2 + m[1] + 1];
-		p10 += z[id][l*m[1] * 2 + m[1]];
+		p11 += z[l*m[1] * 2 + m[1] + 1];
+		p10 += z[l*m[1] * 2 + m[1]];
 	}
 	s[k + 6] = p11 / s[4] - p10 / (1 - s[4]);
 
@@ -48,8 +50,8 @@ void compute_s(vector<vector<double> >& z, int *order, int *m, double *s, int id
 	{
 		int	id_y = int(pow(2.0, order[1] - l) + 0.01);
 		for (int i = 0; i < m[0]; i++) {
-			p11 += z[id][id_y + i * m[1] + m[0]*m[1]];
-			py  += z[id][id_y + i * m[1] + m[0]*m[1]] + z[id][id_y + i * m[1]];
+			p11 += z[id_y + i * m[1] + m[0]*m[1]];
+			py  += z[id_y + i * m[1] + m[0]*m[1]] + z[id_y + i * m[1]];
 		}
 	}
 	// if (p11 == 0) {
@@ -57,41 +59,41 @@ void compute_s(vector<vector<double> >& z, int *order, int *m, double *s, int id
 	// }
 	s[k + 6] = p11 / py / s[3] - 1;
 
-	s[k + 7] = 0;
 
 	// suitable for order_y = 1 or yn=1
+	s[k + 7] = 0;
 	for (int i = 0; i < m[0]; i++)
 	{
 		double p_a0, p_a1, ss;
 
-		ss = z[id][m[1] * m[0] + i * m[1] + 0];
+		ss = z[m[1] * m[0] + i * m[1] + 0];
 		if (ss > 0)
-			p_a0 = ss / (ss + z[id][i * m[1]]);
+			p_a0 = ss / (ss + z[i * m[1]]);
 		else
 		{
 			p_a0 = 0;
 			continue;
 		}
 
-		ss = z[id][m[1] * m[0] + i * m[1] + 1];
+		ss = z[m[1] * m[0] + i * m[1] + 1];
 		if (ss > 0)
-			p_a1 = ss / (ss + z[id][i * m[1] + 1]);
+			p_a1 = ss / (ss + z[i * m[1] + 1]);
 		else
 			p_a1 = 0;
 
-		//s[k + 7] += 0.5*(ss + z[id][i * m[1] + 1]) / p_a0 * (p_a1 - p_a0)*(p_a1 - p_a0)*(1 - s[4]);
-		s[k + 7] += 0.5*(ss + z[id][i * m[1] + 1]) * (p_a1 - p_a0)*(p_a1 - p_a0)*(1 - s[4])*(1 / p_a0 + 1 / (1 - p_a0));
+		//s[k + 7] += 0.5*(ss + z[i * m[1] + 1]) / p_a0 * (p_a1 - p_a0)*(p_a1 - p_a0)*(1 - s[4]);
+		s[k + 7] += 0.5*(ss + z[i * m[1] + 1]) * (p_a1 - p_a0)*(p_a1 - p_a0)*(1 - s[4])*(1 / p_a0 + 1 / (1 - p_a0));
 	}
 }
 
-double compute_TE(vector<vector<double> >& z, int *m, int id)
+double compute_TE(vector<double>& z, int *m)
 {
 	double H[4] = { 0 };      // -H(X,X-,Y-), -H(X-), -H(X-,Y-), -H(X,X-)  y-->x
 
 	for (int l = 0; l < 2 * m[0] * m[1]; l++)
 	{
-		if (z[id][l] != 0)
-			H[0] += z[id][l] * log(z[id][l]);
+		if (z[l] != 0)
+			H[0] += z[l] * log(z[l]);
 	}
 
 	for (int id_x_ = 0; id_x_ < m[0]; id_x_++)
@@ -101,7 +103,7 @@ double compute_TE(vector<vector<double> >& z, int *m, int id)
 			for (int id_y_ = 0; id_y_ < m[1]; id_y_++)
 			{
 				int id_p = (id_x*m[0] + id_x_)*m[1] + id_y_;
-				p += z[id][id_p];
+				p += z[id_p];
 			}
 		if (p != 0)
 			H[1] += p*log(p);
@@ -109,7 +111,7 @@ double compute_TE(vector<vector<double> >& z, int *m, int id)
 
 	for (int id_x_y_ = 0; id_x_y_ < m[0] * m[1]; id_x_y_++)
 	{
-		double p = z[id][id_x_y_] + z[id][id_x_y_ + m[0] * m[1]];
+		double p = z[id_x_y_] + z[id_x_y_ + m[0] * m[1]];
 		if (p != 0)
 			H[2] += p*log(p);
 	}
@@ -118,7 +120,7 @@ double compute_TE(vector<vector<double> >& z, int *m, int id)
 	{
 		double p = 0;
 		for (int id_y_ = 0; id_y_ < m[1]; id_y_++)
-			p += z[id][id_xx_*m[1] + id_y_];
+			p += z[id_xx_*m[1] + id_y_];
 
 		if (p != 0)
 			H[3] += p*log(p);
@@ -127,7 +129,7 @@ double compute_TE(vector<vector<double> >& z, int *m, int id)
 }
 
 // GC, sum DMI(x_n+1+tau,y_n^(l)) & NCC^2(x_n+1+tau,y_n^(l)) & appro for 2sumDMI
-void compute_GC_sum_DMI_NCC(vector<vector<double> >& z, int *order, int *m, double *s, int id)
+void compute_GC_sum_DMI_NCC(vector<double>& z, int *order, int *m, double *s)
 {
 	int k = order[1];
 	// in the order of  XX_Y_
@@ -143,7 +145,7 @@ void compute_GC_sum_DMI_NCC(vector<vector<double> >& z, int *order, int *m, doub
 
 	for (int i = 0; i < 2 * m[0] * m[1]; i++)
 	{
-		if (z[id][i] == 0)
+		if (z[i] == 0)
 			continue;
 
 		int a = i;
@@ -156,42 +158,42 @@ void compute_GC_sum_DMI_NCC(vector<vector<double> >& z, int *order, int *m, doub
 		// p
 		for (int j = 0; j < n; j++)
 			if (zz[j])
-				p[j] += z[id][i];
+				p[j] += z[i];
 
 		// pxy
 		for (int j = 0; j < order[1]; j++)
 		{
 			if (zz[n - 1] == 1 && zz[j] == 1)
-				pxy[j][0] += z[id][i];
+				pxy[j][0] += z[i];
 			if (zz[n - 1] == 1 && zz[j] == 0)
-				pxy[j][1] += z[id][i];
+				pxy[j][1] += z[i];
 			if (zz[n - 1] == 0 && zz[j] == 1)
-				pxy[j][2] += z[id][i];
+				pxy[j][2] += z[i];
 			if (zz[n - 1] == 0 && zz[j] == 0)
-				pxy[j][3] += z[id][i];
+				pxy[j][3] += z[i];
 		}
 
 		// cov(x,x_)
 		for (int j = 0; j < order[0]; j++)
 			if (zz[n - 1] && zz[j + order[1]])
-				cov_xx_[j] += z[id][i];
+				cov_xx_[j] += z[i];
 
 		// cov(x,x_y_)
 		for (int j = 0; j < n - 1; j++)
 			if (zz[n - 1] && zz[j])
-				cov_xx_y_[j] += z[id][i];
+				cov_xx_y_[j] += z[i];
 
 		// cov(x_)
 		for (int j = 0; j < order[0]; j++)
 			for (int l = 0; l < order[0]; l++)
 				if (zz[j + order[1]] && zz[l + order[1]])
-					cov_x_[j][l] += z[id][i];
+					cov_x_[j][l] += z[i];
 
 		// cov(x_y_)
 		for (int j = 0; j < n - 1; j++)
 			for (int l = 0; l < n - 1; l++)
 				if (zz[j] && zz[l])
-					cov_x_y_[j][l] += z[id][i];
+					cov_x_y_[j][l] += z[i];
 
 	}
 
@@ -306,13 +308,13 @@ void compute_causality(
 			}
 
 
-			s[0] = compute_TE(z, m, id); 
-			compute_s(z, order, m, s, id);
+			s[0] = compute_TE(z[id], m); 
+			compute_s(z[id], order, m, s);
 
 			//compute_GC(s, id);
 			//compute_DMI_NCC(s, id);
 
-			compute_GC_sum_DMI_NCC(z, order, m, s, id);
+			compute_GC_sum_DMI_NCC(z[id], order, m, s);
 
 			fwrite(s, sizeof(double), k + 12, ofile);
 
