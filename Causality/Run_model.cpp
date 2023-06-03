@@ -55,11 +55,10 @@ void compute_p(
 	vector<vector<unsigned int> >& X, int y, int x, int N,
 	vector<vector<double> >& z, int tau, int *order, int *m)
 {
+	// Translate binary spike sequence to decimal represetation.
+	int x_coding, y_coding;
 	for (int i = order[2] - 1 + tau; i < X[0].size(); i++)
 	{
-		// Translate binary spike sequence to decimal represetation.
-		int x_coding, y_coding;
-
 		x_coding = X[x][i];
 		y_coding = X[y][i - tau - 1];
 

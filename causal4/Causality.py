@@ -343,6 +343,7 @@ def run(verbose=False, shuffle=False, **kwargs):
         con_mat = "--matrix_name %s",
         path_input = "--path_input %s",
         path_output = "--path_output %s",
+        mask_file = "--mask_file %s",
         n_thread = "-j %d",
     )
     cml_options = './bin/calCausality -c ./Causality/NetCau_parameters.ini '
@@ -432,10 +433,10 @@ def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30):
     ##%%
     # run cal_causality to calculate causalities
     if force_regen:
-        _ = scan_pm_single('delay', delay, False, mp=mp, **pm)
+        _ = scan_pm_single('delay', delay, True, mp=mp, **pm)
     else:
         if delay_not_gen.shape[0] > 0:
-            _ = scan_pm_single('delay', delay_not_gen, False, mp=mp, **pm)
+            _ = scan_pm_single('delay', delay_not_gen, True, mp=mp, **pm)
 
 # %%
 def scan_pm_multi(pm:str, val_range:np.ndarray, verbose=False, mp=None, fname_kws={}, **kwargs):

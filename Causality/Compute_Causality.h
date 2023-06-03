@@ -16,6 +16,7 @@ void compute_causality(
     vector<vector<double>> &z, int *order, int *m, int N, FILE *ofile,
 	vector<vector<double>> &TE, vector<vector<double>> &GC, 
 	vector<vector<double>> &DMI, vector<vector<double>> &NCC, 
-	vector<vector<double>> &TE_2, vector<vector<double>> &DMI_2);
+	vector<vector<double>> &TE_2, vector<vector<double>> &DMI_2,
+	bool mask_toggle, vector<vector<double>> &mask_indices);
 
 #endif // !__COMPUTE_CAUSALITY_

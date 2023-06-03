@@ -5,6 +5,7 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #include "common_header.h"
+int num_threads_openmp = 1;
 #include "Kmean.h" 
 #include "Compute_Causality.h"
 #include "Run_model.h"
@@ -50,6 +51,7 @@ int main(int argc, char **argv)
         ("path_input", po::value<string>()->default_value("./"), "path for input data file")
         ("path_output", po::value<string>()->default_value("./"), "path for output data file")
         ("n_thread,j", po::value<int>()->default_value(1), "number of threads for causality estimation")
+        ("mask_file", po::value<string>(), "filename of mask file in compressed sparse matrix.")
         ;
     // create variable map
     po::variables_map vm;
@@ -83,7 +85,7 @@ int main(int argc, char **argv)
     // dir = vm["prefix"].as<string>();
 
     // define variables
-    int num_threads_openmp = vm["n_thread"].as<int>();
+    num_threads_openmp = vm["n_thread"].as<int>();
 
 
     // --------------------------------------
@@ -188,6 +190,36 @@ int main(int argc, char **argv)
 
 	data_length = int(DT / bin);
 
+	char mask_fname[200];
+	bool mask_toggle = false;
+	vector<vector<double> > mask_indices(2);
+    if (vm.count("mask_file")) {
+		strcpy(mask_fname, path_input); 
+		strcat(mask_fname, vm["mask_file"].as<string>().c_str());
+		FILE *fp_mask;
+		fp_mask = fopen(mask_fname, "rb");
+		if (fp_mask == NULL)
+		{
+			printf("Warning! can not open connect matrix file! %s \n", mask_fname);
+			//	exit(0);
+		}
+
+		long int file_size;
+		double s;
+		fseek(fp_mask, 0, SEEK_END);
+		file_size = ftell(fp_mask)/sizeof(double);
+		fseek(fp_mask, 0, SEEK_SET);
+
+		for (int i = 0; i < 2; i++) {
+			mask_indices[i].resize(file_size/2, 0);
+			fread(&mask_indices[i][0], sizeof(double), file_size/2, fp_mask);	
+		}
+		std::fclose(fp_mask);
+		mask_toggle = true;
+		if (verbose)
+			printf("mask on, and mask_size=%d\n", mask_indices[0].size());
+	}
+
     // X[id][0/1]  | size=(N, DT/bin+1) | partial binarized spike train
 	vector<vector<unsigned int> > X(N, vector<unsigned int>(data_length, 0));
 
@@ -204,25 +236,43 @@ int main(int argc, char **argv)
 			for (int neu_id=0; neu_id < N; neu_id ++)
 				shuffle(&X[neu_id][0], &X[neu_id][data_length], rng);
 		}
-		
-		#pragma omp parallel for num_threads(num_threads_openmp)
-		for (int i = 0; i < N*N; i++)  // y-->x
-		{
-			int x, y;
-			y = i / N;
-			x = i % N;
 
-			// Comment below the calculate auto-correlation
-			if (y == x)
-				continue;
-			compute_p(X, y, x, N, z, tau, order, m);
+		if (mask_toggle) {
+			#pragma omp parallel for num_threads(num_threads_openmp)
+			for (int i = 0; i < mask_indices[0].size(); i++) {
+				int x, y;
+				x = mask_indices[0][i];
+				y = mask_indices[1][i];
+				int z_index = y * N + x;
+				compute_p(X, y, x, N, z, tau, order, m);
+			}
+		} else {
+			#pragma omp parallel for num_threads(num_threads_openmp)
+			for (int i = 0; i < N*N; i++)  // y-->x
+			{
+				int x, y;
+				y = i / N;
+				x = i % N;
+
+				// Comment below the calculate auto-correlation
+				if (y == x)
+					continue;
+				compute_p(X, y, x, N, z, tau, order, m);
+			}
 		}
+		for (int i = 0; i < N; i++)
+			X[i].assign(data_length, 0);
 	}
-	fclose(fp);
+	std::fclose(fp);
 
 	L = 0;
-	for (int i = 0; i < 2 * m[0] * m[1]; i++)
-		L += z[1][i];
+	if (mask_toggle) {
+		for (int i = 0; i < 2 * m[0] * m[1]; i++)
+			L += z[mask_indices[0][0] + mask_indices[1][0] * N][i];
+	} else {
+		for (int i = 0; i < 2 * m[0] * m[1]; i++)
+			L += z[1][i];
+	}
 
 	for (int i = 0; i < N*N; i++)
 		for (int j = 0; j < 2 * m[0] * m[1]; j++)
@@ -243,7 +293,7 @@ int main(int argc, char **argv)
 	vector<vector<double> > NCC(N, vector<double>(N, 0));
 	vector<vector<double> > TE_2(N, vector<double>(N, 0));
 	vector<vector<double> > DMI_2(N, vector<double>(N, 0));
-	compute_causality(z, order, m, N, FP, TE, GC, DMI, NCC, TE_2, DMI_2);
+	compute_causality(z, order, m, N, FP, TE, GC, DMI, NCC, TE_2, DMI_2, mask_toggle, mask_indices);
 
 	char cch[4][100] = { {"GC"},{"sum NCC"},{"2 sum DMI"},{"2TE"} };
 
@@ -284,11 +334,11 @@ int main(int argc, char **argv)
 	Kmean(GC, threshold[1], accuracy[1], str, L, NE, NI);
 	Kmean(DMI_2, threshold[2], accuracy[2], str, L, NE, NI);
 	Kmean(NCC, threshold[3], accuracy[3], str, L, NE, NI);
-	fwrite(&L, sizeof(double), 1, FP);
-	fwrite(&threshold, sizeof(double), 4, FP);
-	fwrite(&accuracy, sizeof(double), 4, FP);
+	std::fwrite(&L, sizeof(double), 1, FP);
+	std::fwrite(&threshold, sizeof(double), 4, FP);
+	std::fwrite(&accuracy, sizeof(double), 4, FP);
 
-	fclose(FP);
+	std::fclose(FP);
 
 	t1 = clock();
 	if (verbose) {

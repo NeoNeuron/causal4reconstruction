@@ -14,17 +14,14 @@ void read_connect_matrix(char fname[], vector<vector<double> > &connect_matrix, 
 		//	exit(0);
 	}
 
-	int num = 0;
+	long int file_size;
 	double s;
-	while (!feof(fp))
-	{
-		fread(&s, sizeof(double), 1, fp);
-		num++;
-	}
-	rewind(fp);
+	fseek(fp, 0, SEEK_END);
+	file_size = ftell(fp)/sizeof(double);
+	fseek(fp, 0, SEEK_SET);
 
 	int N = connect_matrix.size();
-	if (num >= N*N + 1) // dense matrix
+	if (file_size >= N*N) // dense matrix
 	{
 		for (int i = 0; i < N; i++)		
 			fread(&connect_matrix[i][0], sizeof(double), int(N), fp);	
@@ -32,7 +29,7 @@ void read_connect_matrix(char fname[], vector<vector<double> > &connect_matrix, 
 	else // sparse matrix
 	{
 
-		A = new double[N + 1];
+		A = new double[file_size/3 + 1];
 		fread(A, sizeof(double), N + 1, fp);
 		B = new double[int(A[N])];
 		C = new double[int(A[N])];

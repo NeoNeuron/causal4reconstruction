@@ -54,5 +54,6 @@ void str2vec(std::string str, std::vector<T>& out) {
 
 extern std::random_device rd;
 extern std::mt19937 rng;
+extern int num_threads_openmp;
 
 #endif // __COMMON_HEADER_
