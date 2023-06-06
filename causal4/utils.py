@@ -66,34 +66,43 @@ def conn2bin(net, sparse=True):
     Returns:
         conn_mat (array): connectivity matrix
     """
-    E2E, E2I, I2E, I2I = net.E2E, net.E2I, net.I2E, net.I2I
-    if not sparse:
-        Erows = np.concatenate([E2E.conn.require('conn_mat').astype(float), E2I.conn.require('conn_mat').astype(float)], axis=1)
-        Irows = np.concatenate([I2E.conn.require('conn_mat').astype(float), I2I.conn.require('conn_mat').astype(float)], axis=1)
-        conn_mat = np.concatenate([Erows, Irows], axis=0).astype(float)
+    if not hasattr(net, 'I'):
+        E2E = net.E2E
+        if not sparse:
+            conn_mat = E2E.conn.require('conn_mat').astype(float)
+        else:
+            pre_ids_all, post_ids_all = E2E.conn.require('pre_ids', 'post_ids')
+            weights_all = np.ones_like(pre_ids_all)*net.w_e2e
+            conn_mat = np.vstack([pre_ids_all, post_ids_all, weights_all])
     else:
-        pre_ids_all, post_ids_all = E2E.conn.require('pre_ids', 'post_ids')
-        weights_all = np.ones_like(pre_ids_all)*net.w_e2e
-        pre_ids, post_ids = E2I.conn.require('pre_ids', 'post_ids')
-        weights = np.ones_like(pre_ids)*net.w_e2i
-        post_ids += net.num_e
-        pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
-        post_ids_all = np.concatenate([post_ids_all, post_ids])
-        weights_all = np.concatenate([weights_all, weights])
-        pre_ids, post_ids = I2E.conn.require('pre_ids', 'post_ids')
-        weights = np.ones_like(pre_ids)*(-net.w_i2e)
-        pre_ids += net.num_e
-        pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
-        post_ids_all = np.concatenate([post_ids_all, post_ids])
-        weights_all = np.concatenate([weights_all, weights])
-        pre_ids, post_ids = I2I.conn.require('pre_ids', 'post_ids')
-        weights = np.ones_like(pre_ids)*(-net.w_i2i)
-        pre_ids += net.num_e
-        post_ids += net.num_e
-        pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
-        post_ids_all = np.concatenate([post_ids_all, post_ids])
-        weights_all = np.concatenate([weights_all, weights])
-        conn_mat = np.vstack([pre_ids_all, post_ids_all, weights_all])
+        E2E, E2I, I2E, I2I = net.E2E, net.E2I, net.I2E, net.I2I
+        if not sparse:
+            Erows = np.concatenate([E2E.conn.require('conn_mat').astype(float), E2I.conn.require('conn_mat').astype(float)], axis=1)
+            Irows = np.concatenate([I2E.conn.require('conn_mat').astype(float), I2I.conn.require('conn_mat').astype(float)], axis=1)
+            conn_mat = np.concatenate([Erows, Irows], axis=0).astype(float)
+        else:
+            pre_ids_all, post_ids_all = E2E.conn.require('pre_ids', 'post_ids')
+            weights_all = np.ones_like(pre_ids_all)*net.w_e2e
+            pre_ids, post_ids = E2I.conn.require('pre_ids', 'post_ids')
+            weights = np.ones_like(pre_ids)*net.w_e2i
+            post_ids += net.num_e
+            pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
+            post_ids_all = np.concatenate([post_ids_all, post_ids])
+            weights_all = np.concatenate([weights_all, weights])
+            pre_ids, post_ids = I2E.conn.require('pre_ids', 'post_ids')
+            weights = np.ones_like(pre_ids)*(-net.w_i2e)
+            pre_ids += net.num_e
+            pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
+            post_ids_all = np.concatenate([post_ids_all, post_ids])
+            weights_all = np.concatenate([weights_all, weights])
+            pre_ids, post_ids = I2I.conn.require('pre_ids', 'post_ids')
+            weights = np.ones_like(pre_ids)*(-net.w_i2i)
+            pre_ids += net.num_e
+            post_ids += net.num_e
+            pre_ids_all = np.concatenate([pre_ids_all, pre_ids])
+            post_ids_all = np.concatenate([post_ids_all, post_ids])
+            weights_all = np.concatenate([weights_all, weights])
+            conn_mat = np.vstack([pre_ids_all, post_ids_all, weights_all])
     return conn_mat
 
 def plot_spk_fft(spk_data:np.ndarray, dt:float=0.5, ax:Axes=None,

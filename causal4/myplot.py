@@ -462,7 +462,7 @@ def hist_causal_blind(pm_causal, hist_range:tuple=None, fit_p0 = None, return_da
         return fig_data
 
 
-def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
+def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_mask=None):
     # ====================
     # Histogram of causal values
     # ====================
@@ -489,6 +489,10 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
     }
 
     inf_mask = ~np.eye(N, dtype=bool)
+    if EI_mask == 'E':
+        inf_mask[80:, :]=False
+    elif EI_mask == 'I':
+        inf_mask[:80, :]=False
     if hist_range is None:
         # determine histogram value range
         data_buff = cau.load_from_single(fname, 'TE')
@@ -511,12 +515,14 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
     fname_conn = pm_causal['path_output']+f"EE/N={N:d}/" + pm_causal['con_mat']
     conn_raw = np.fromfile(fname_conn, dtype=float)
     if conn_raw.shape[0] >= N*N:
+        print('>> Load dense matrix:')
         conn = conn_raw[:int(N*N)].reshape(N,N).astype(bool)
         if conn_raw.shape[0] > N*N:
             conn_weight = conn_raw[int(N*N):].reshape(N,N)
         else:
             conn_weight = None
     else:
+        print('>> Load sparse matrix:')
         conn_raw = conn_raw.reshape(3,-1)
         conn = np.zeros((N,N), dtype=bool)
         conn_weight = np.zeros((N,N), dtype=float)
@@ -597,20 +603,31 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None):
         # th_idx = dict(TE=0, GC=1, MI=2, CC=3)
         # th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
         # TODO: Fix inaccurate double peak separation for some cases.
-        th_km = kmeans_1d(log_cau[inf_mask*nan_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
-        fig_data['kmean_th'][key] = th_km
-        ax_hist[0].axvline(th_km, ymax=0.9, lw=1, color=line_rc[key]['color'])
-        conn_recon = log_cau >= th_km
-        error_mask = np.logical_xor(conn, conn_recon)
-        fig_data['acc_kmeans'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
-        fig_data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+        try:
+            th_km = kmeans_1d(log_cau[inf_mask*nan_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
+            fig_data['kmean_th'][key] = th_km
+            ax_hist[0].axvline(th_km, ymax=0.9, lw=1, color=line_rc[key]['color'])
+            conn_recon = log_cau >= th_km
+            error_mask = np.logical_xor(conn, conn_recon)
+            fig_data['acc_kmeans'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
+            fig_data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+        except:
+            fig_data['kmean_th'][key] = np.nan
+            fig_data['acc_kmeans'][key] = np.nan
+            fig_data['ppv_kmeans'][key] = np.nan
 
         # Double Gaussian Anaylsis
         ax_hist[1].plot(bins[:-1], counts_total, **line_rc[key])
-        popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
-        fig_data['opt_th'][key] = threshold
-        fig_data['log_norm_fit_pval'][key] = popt
-        fig_data['roc_blind'][key] = np.vstack((fpr, tpr))
+        try:
+            popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
+            fig_data['opt_th'][key] = threshold
+            fig_data['log_norm_fit_pval'][key] = popt
+            fig_data['roc_blind'][key] = np.vstack((fpr, tpr))
+        except:
+            popt = None
+            fig_data['opt_th'][key] = np.nan
+            fig_data['log_norm_fit_pval'][key] = np.nan
+            fig_data['roc_blind'][key] = np.nan
         if popt is not None:
             ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
             ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )

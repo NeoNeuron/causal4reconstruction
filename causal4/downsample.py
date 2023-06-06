@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from struct import pack, unpack, _clearcache
 from pathlib import Path
 # %%
-def downsample(fname:str, ofname:str, path:str, ra:float):
+def downsample(fname:str, ofname:str, path:str, ra:float, force_regen=False):
     """downsample spike train data
 
     Args:
@@ -19,14 +19,13 @@ def downsample(fname:str, ofname:str, path:str, ra:float):
     del_spk_counts = 0
     ifpath = Path(path+fname)
     ofpath = Path(path+ofname)
-    if ofpath.exists():
+    if ofpath.exists() and not force_regen:
         total_spk_counts = int(ifpath.stat().st_size/8/2)
         del_spk_counts = int((ifpath.stat().st_size-ofpath.stat().st_size)/8/2)
-        if True:
-            print(f">> {ofpath} already exists ...")
-            print(f">> raw size :      {total_spk_counts:12.0f} spikes")
-            print(f">> filtered size : {del_spk_counts:12.0f} spikes")
-            print(f">> {100*del_spk_counts/total_spk_counts:.2f}% spikes have been deleted!")
+        print(f">> {ofpath} already exists ...")
+        print(f">> raw size :      {total_spk_counts:12.0f} spikes")
+        print(f">> filtered size : {del_spk_counts:12.0f} spikes")
+        print(f">> {100*del_spk_counts/total_spk_counts:.2f}% spikes have been deleted!")
         return 0
     of = open(ofpath, 'wb')
     with open(ifpath, 'rb') as f:
@@ -54,7 +53,7 @@ def downsample(fname:str, ofname:str, path:str, ra:float):
 
             # filter bins and save to file
             sync_bin_idx = counts>threshold
-            slices = np.array(np.vsplit(spk_buff, np.cumsum(counts)))
+            slices = np.array(np.vsplit(spk_buff, np.cumsum(counts)), dtype=object)
             new_spks = np.vstack(slices[:-1][~sync_bin_idx])
             of.write(pack("d"*new_spks.shape[0]*new_spks.shape[1], *new_spks.flatten()))
             _clearcache()
