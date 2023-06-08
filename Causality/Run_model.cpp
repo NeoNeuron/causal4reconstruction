@@ -3,16 +3,28 @@
 #include <vector>
 using namespace std;
 
-void Print(vector<vector<double> >& a, char str[])
+void Print(vector<double>& a, char str[], int count_in_line)
 {
 	printf("%s:\n", str);
-	for (auto i = a.begin(); i != a.end(); i++)
-	{
-		for (auto j = (*i).begin(); j < (*i).end(); j++)
-			printf("%0.3e ", *j);
+	if (a.size() == count_in_line){
+		for (auto i = a.begin(); i != a.end(); i++)
+			printf("%0.3e ", *i);
 		printf("\n");
+	} else if (a.size() == count_in_line*count_in_line) {
+		int counter = 0;
+		for (auto i = a.begin(); i != a.end(); i++) {
+			printf("%0.3e ", *i);
+			counter++;
+			if (counter == count_in_line) {
+				printf("\n");
+				counter = 0;
+			}
+		}
+		printf("\n");
+	} else {
+		printf("Error! Print()!\n");
+		exit(0);
 	}
-	printf("\n");
 }
 
 double Find_T_Max(FILE *fp, bool verbose)
@@ -29,7 +41,7 @@ double Find_T_Max(FILE *fp, bool verbose)
 // read data in [t0, t1)
 void read_data(
 	FILE *fp, double t0, double t1, double bin, 
-	vector<vector<unsigned int> >& X, int N)
+	vector<vector<unsigned short int> >& X, int N)
 {
 	double s[2];
 	int node_id, time_id;
@@ -52,8 +64,9 @@ void read_data(
 
 // y-->x  XX-Y- 101
 void compute_p(
-	vector<vector<unsigned int> >& X, int y, int x, int N,
-	vector<vector<double> >& z, int tau, int *order, int *m)
+	vector<vector<unsigned short int> >& X, int y, int x, int N,
+	vector<vector<double> >& z, int tau, int *order, int *m,
+	int z_index)
 {
 	// Translate binary spike sequence to decimal represetation.
 	int x_coding, y_coding;
@@ -66,6 +79,6 @@ void compute_p(
 			x_coding = x_coding * 2 + X[x][i - j];
 		for (int j = 1; j < order[1]; j++)
 			y_coding = y_coding * 2 + X[y][i - tau - 1 - j];
-		z[y*N + x][x_coding*m[1] + y_coding] += 1.0;
+		z[z_index][x_coding*m[1] + y_coding] += 1.0;
 	}
 }

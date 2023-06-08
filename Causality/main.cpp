@@ -6,7 +6,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "common_header.h"
 int num_threads_openmp = 1;
-#include "Kmean.h" 
+// #include "Kmean.h" 
 #include "Compute_Causality.h"
 #include "Run_model.h"
 std::random_device rd;
@@ -25,15 +25,14 @@ int main(int argc, char **argv)
         ;
     po::options_description data_structure(
 		R"(Data structure of output file:
-	The original data file contains N*N*(k+12)+9 double-type values.
-	The first N*N*(k+12) values are related to pairwise inferenced causality values, which are organized as follows:
+	The original data file contains N*N*(k+12) double-type values of 
+	pairwise inferenced causality values, which are organized as follows:
 	For each pair of neurons (y,x), the following values are stored:
 		TE value, idx of y, idx of x, p(x=1), p(y=1), p(x = 1 | x- = 0, y- = 0),
 		\delta p_{y->x}: dp1,dp2,...,dpk,
 		\Delta p_m = p(x = 1,y- = 1)/(p(x = 1)p(y- = 1)) - 1,
 		te_order5, GC value, sum of TDMI over delays, sum of TDCC^2 over delays,
-		appxo for 2sumDMI.
-	The last 9 values are the length of time sereis (L), threshold for reconstruction based on 4 causality measures, reconstruction accuracy based on 4 causality measures.)"
+		appxo for 2sumDMI.)"
 	);
     po::options_description config("Configs");
     config.add_options()
@@ -188,6 +187,7 @@ int main(int argc, char **argv)
 	}
 	read_repeat = int(T_Max / DT + 0.01);
 
+	// most memory cost
 	data_length = int(DT / bin);
 
 	char mask_fname[200];
@@ -221,11 +221,16 @@ int main(int argc, char **argv)
 	}
 
     // X[id][0/1]  | size=(N, DT/bin+1) | partial binarized spike train
-	vector<vector<unsigned int> > X(N, vector<unsigned int>(data_length, 0));
+	vector<vector<unsigned short int> > X(N, vector<unsigned short int>(data_length, 0));
 
     // z[i-->j][p] | size=(N*N, 2**(1+order[0]+order[1]) | pair wise TE's p(x,x-,y-)
-	vector<vector<double> > z(N*N, vector<double>(2 * m[0] * m[1], 0));
+	vector<vector<double> > z;
+	if (mask_toggle)
+		z.resize(mask_indices[0].size(), vector<double>(2 * m[0] * m[1], 0));
+	else
+		z.resize(N*N, vector<double>(2 * m[0] * m[1], 0));
 
+	int num_pairs = mask_toggle ? mask_indices[0].size() : N * N;
 	for (int id = 0; id < read_repeat; id++)
 	{
 		read_data(fp, 1.0*id*data_length*bin, 1.0*(1 + id)*data_length*bin, bin, X, N);
@@ -237,28 +242,17 @@ int main(int argc, char **argv)
 				shuffle(&X[neu_id][0], &X[neu_id][data_length], rng);
 		}
 
-		if (mask_toggle) {
-			#pragma omp parallel for num_threads(num_threads_openmp)
-			for (int i = 0; i < mask_indices[0].size(); i++) {
-				int x, y;
-				x = mask_indices[0][i];
-				y = mask_indices[1][i];
-				int z_index = y * N + x;
-				compute_p(X, y, x, N, z, tau, order, m);
-			}
-		} else {
-			#pragma omp parallel for num_threads(num_threads_openmp)
-			for (int i = 0; i < N*N; i++)  // y-->x
-			{
-				int x, y;
-				y = i / N;
-				x = i % N;
-
-				// Comment below the calculate auto-correlation
-				if (y == x)
-					continue;
-				compute_p(X, y, x, N, z, tau, order, m);
-			}
+		#pragma omp parallel for num_threads(num_threads_openmp)
+		for (int i = 0; i < num_pairs; i++) {  // y-->x
+			int x, y;
+			if (mask_toggle)	// y: pre, x: post
+				y = mask_indices[0][i], x = mask_indices[1][i];
+			else
+				y = i / N, x = i % N;
+			// Comment below the calculate auto-correlation
+			if (y == x)
+				continue;
+			compute_p(X, y, x, N, z, tau, order, m, i);
 		}
 		for (int i = 0; i < N; i++)
 			X[i].assign(data_length, 0);
@@ -268,15 +262,15 @@ int main(int argc, char **argv)
 	L = 0;
 	if (mask_toggle) {
 		for (int i = 0; i < 2 * m[0] * m[1]; i++)
-			L += z[mask_indices[0][0] + mask_indices[1][0] * N][i];
+			L += z[0][i];
 	} else {
 		for (int i = 0; i < 2 * m[0] * m[1]; i++)
 			L += z[1][i];
 	}
 
-	for (int i = 0; i < N*N; i++)
-		for (int j = 0; j < 2 * m[0] * m[1]; j++)
-			z[i][j] /= L;
+	for (auto i = z.begin(); i != z.end(); i++)
+		for (auto j = (*i).begin(); j != (*i).end(); j++)
+			*j /= L;
 
 	// compute TE(x_n+1+tau,x_n+tau,y_n), GC(x_n+1+tau,x_n+tau,y_n) 
 	// sum DMI(x_n+1+tau,y_n), CC(x_n+1+tau,y_n)
@@ -285,29 +279,8 @@ int main(int argc, char **argv)
 	if (verbose)
 		printf("save to file :%s\n\n", output_filename);
 
-    // TE[N][N], GC, sum of DMI, sum of NCC^2 y-->x	
-    // 2TE,2DMI, [N][N], y-->x
-	vector<vector<double> > TE(N, vector<double>(N, 0));
-	vector<vector<double> > GC(N, vector<double>(N, 0));
-	vector<vector<double> > DMI(N, vector<double>(N, 0));
-	vector<vector<double> > NCC(N, vector<double>(N, 0));
-	vector<vector<double> > TE_2(N, vector<double>(N, 0));
-	vector<vector<double> > DMI_2(N, vector<double>(N, 0));
-	compute_causality(z, order, m, N, FP, TE, GC, DMI, NCC, TE_2, DMI_2, mask_toggle, mask_indices);
-
-	char cch[4][100] = { {"GC"},{"sum NCC"},{"2 sum DMI"},{"2TE"} };
-
-	if (N <= 10) //revise
-	{
-		if (verbose) {
-			Print(TE_2, cch[3]);
-
-			//Print(TE_2, cch[3]);
-			//Print(GC, cch[0]);
-			//Print(DMI_2, cch[2]);
-			//Print(NCC_2, cch[1]);
-		}
-	}
+    // TE, GC, sum of DMI, sum of NCC^2 y-->x	
+	compute_causality(z, order, m, N, FP, mask_toggle, mask_indices);
 
     // conn_file_fname
 	strcpy(str, path_input), strcat(str, matrix_name);
@@ -329,29 +302,11 @@ int main(int argc, char **argv)
 	// strcat(str, matrix_name);
 	// printf("conn_filename=%s\n", str);
 
-	//  reconstruction & kmean	
-	Kmean(TE_2, threshold[0], accuracy[0], str, L, NE, NI);
-	Kmean(GC, threshold[1], accuracy[1], str, L, NE, NI);
-	Kmean(DMI_2, threshold[2], accuracy[2], str, L, NE, NI);
-	Kmean(NCC, threshold[3], accuracy[3], str, L, NE, NI);
-	std::fwrite(&L, sizeof(double), 1, FP);
-	std::fwrite(&threshold, sizeof(double), 4, FP);
-	std::fwrite(&accuracy, sizeof(double), 4, FP);
-
 	std::fclose(FP);
 
 	t1 = clock();
 	if (verbose) {
 		printf("T_max=%0.2e L=%0.2e\n", T_Max, L);
-
-		for (int i = 0; i < 4; i++)
-			printf("th=%0.3e ", threshold[i]);
-		printf("\n");
-
-		for (int i = 0; i < 4; i++)
-			printf("accu=%0.2f ", accuracy[i]);
-		printf("\n");
-
 		printf("Total time=%0.3fs\n\n", double(t1 - t0) / CLOCKS_PER_SEC);
 	}
 

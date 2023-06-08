@@ -276,89 +276,39 @@ void compute_GC_sum_DMI_NCC(vector<double>& z, int *order, int *m, double *s)
 
 void compute_causality(
 	vector<vector<double>> &z, int *order, int *m, int N, FILE *ofile,
-	vector<vector<double>> &TE, vector<vector<double>> &GC, 
-	vector<vector<double>> &DMI, vector<vector<double>> &NCC, 
-	vector<vector<double>> &TE_2, vector<vector<double>> &DMI_2, 
 	bool mask_toggle, vector<vector<double>> &mask_indices)
 {	
 	int k = order[1]; // order of y (presynaptic neuron)
 
-	if (mask_toggle) {
-		// #pragma omp parallel for num_threads(num_threads_openmp)
-		for (int id = 0; id < mask_indices[0].size(); id++)  // i-->j
-		{
-			double *s;
-			s = new double[k + 12];    
-			for (int l = 0; l < k + 12; l++)
-				s[l] = 0;
+	int num_pairs = mask_toggle ? mask_indices[0].size() : N * N;
+	for (int id = 0; id < num_pairs; id++)  // i-->j
+	{
+		double *s;
+		s = new double[k + 12];    
+		for (int l = 0; l < k + 12; l++)
+			s[l] = 0;
 
-			int i = mask_indices[0][id], j = mask_indices[1][id];
-			s[1] = i;
-			s[2] = j;
-			int z_id = i * N + j;
+		int i, j;
+		if (mask_toggle)
+			i = mask_indices[0][id], j = mask_indices[1][id];
+		else
+			i = id / N, j = id % N;
+		s[1] = i;
+		s[2] = j;
 
-			// Comment below the calculate auto-correlation
-			if (i == j)
-			{
-				fwrite(s, sizeof(double), k + 12, ofile);
-				TE[i][j] = 0, GC[i][j] = 0, DMI[i][j] = 0, NCC[i][j] = 0;
-				TE_2[i][j] = 0, DMI_2[i][j] = 0;
-				continue;
-			}
-
-			s[0] = compute_TE(z[z_id], m); 
-			compute_s(z[z_id], order, m, s);
-			compute_GC_sum_DMI_NCC(z[z_id], order, m, s);
-
+		// Comment below the calculate auto-correlation
+		if (i == j) {
 			fwrite(s, sizeof(double), k + 12, ofile);
-
-			TE[i][j] = s[0], GC[i][j] = s[k + 8];
-			DMI[i][j] = s[k + 9], NCC[i][j] = s[k + 10];
-
-			TE_2[i][j] = TE[i][j] * 2;
-			DMI_2[i][j] = DMI[i][j] * 2;
-			delete[]s;
+			continue;
 		}
-	} else {
-		// #pragma omp parallel for num_threads(num_threads_openmp)
-		for (int id = 0; id < N*N; id++)  // i-->j
-		{
-			double *s;
-			s = new double[k + 12];    
-			for (int l = 0; l < k + 12; l++)
-				s[l] = 0;
 
-			int i = id / N, j = id % N;
-			s[1] = i;
-			s[2] = j;
+		s[0] = compute_TE(z[id], m); 
+		compute_s(z[id], order, m, s);
+		compute_GC_sum_DMI_NCC(z[id], order, m, s);
 
-			// Comment below the calculate auto-correlation
-			if (i == j)
-			{
-				fwrite(s, sizeof(double), k + 12, ofile);
-				TE[i][j] = 0, GC[i][j] = 0, DMI[i][j] = 0, NCC[i][j] = 0;
-				TE_2[i][j] = 0, DMI_2[i][j] = 0;
-				continue;
-			}
+		fwrite(s, sizeof(double), k + 12, ofile);
 
-
-			s[0] = compute_TE(z[id], m); 
-			compute_s(z[id], order, m, s);
-
-			//compute_GC(s, id);
-			//compute_DMI_NCC(s, id);
-
-			compute_GC_sum_DMI_NCC(z[id], order, m, s);
-
-			fwrite(s, sizeof(double), k + 12, ofile);
-
-			TE[i][j] = s[0], GC[i][j] = s[k + 8];
-			DMI[i][j] = s[k + 9], NCC[i][j] = s[k + 10];
-
-			TE_2[i][j] = TE[i][j] * 2;
-			DMI_2[i][j] = DMI[i][j] * 2;
-			delete[]s;
-		}
+		delete[]s;
 	}
 }
 

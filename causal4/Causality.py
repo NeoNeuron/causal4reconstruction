@@ -50,22 +50,23 @@ def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float,
 
 
 class CausalityIO(object):
-    # ! Original data structure
-    # dat[0]  : TE value
-    # dat[1]  :	x index 
-    # dat[2]  :	y index 
-    #   p = p(x_{n+1}, x-, y-)
-    # dat[3]  : p(x_{n+1}=1)
-    # dat[4]  : p(y_{n}=1)
-    # dat[5]  : p0 = p(0,0,0) + p(1,0,0)
-    # dat[6]  : dpl(or more) = p(x=1|x-, y-_l = 1) - p(x=1|x-, y-_l = 0)
-    # dat[7]  : \Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
-    # dat[7+order]  : TE(l=5)
-    # dat[8+order]  : GC
-    # dat[9+order] : \sum{TDMI}
-    # dat[10+order] : \sum{NCC^2}
-    # dat[11+order] : approx for 2*\sum{TDMI}
-    # y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. 
+    """ ! Original data structure
+        dat[0]  : TE value
+        dat[1]  :	x index 
+        dat[2]  :	y index 
+        p = p(x_{n+1}, x-, y-)
+        dat[3]  : p(x_{n+1}=1)
+        dat[4]  : p(y_{n}=1)
+        dat[5]  : p0 = p(0,0,0) + p(1,0,0)
+        dat[6]  : dpl(or more) = p(x=1|x-, y-_l = 1) - p(x=1|x-, y-_l = 0)
+        dat[7]  : \Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
+        dat[7+order]  : TE(l=5)
+        dat[8+order]  : GC
+        dat[9+order] : \sum{TDMI}
+        dat[10+order] : \sum{NCC^2}
+        dat[11+order] : approx for 2*\sum{TDMI}
+        y-->x.  Total N*N*(k+12).
+    """
 
     def __init__(self, dtype, N=2, order=(1,1), bin=0.5, delay=0, 
                  T=None, **kwargs) -> None:
@@ -142,12 +143,15 @@ class CausalityIO(object):
         result = np.zeros_like(val_range).astype(float)
         for i, val in enumerate(val_range):
             # print(f'Load data from {self.cat_fname(spk_fname=spk_fname, **{pm_name:val},):s} ...')
-            dat = np.fromfile(self.cat_fname(spk_fname=spk_fname, **{pm_name:val}), dtype=np.float64)
-            first = dat[:-9].reshape((-1, self.order[1]+12))
+            dat = np.fromfile(self.get_fname(spk_fname=spk_fname, **{pm_name:val}), dtype=np.float64)
+            if dat.shape[0] % (self.order[1]+12) != 0:
+                first = dat[:-9].reshape((-1, self.order[1]+12))
+            else:
+                first = dat.reshape((-1, self.order[1]+12))
             result[i] = first[id, self.causal_map[causal_type]]
         return result
 
-    def cat_fname(self, spk_fname:str, **kwargs):
+    def get_fname(self, spk_fname:str, **kwargs):
         pm_buff = dict(
             dtype=self.dtype, 
             midterm=self.midterm, 
@@ -174,33 +178,44 @@ class CausalityIO(object):
         Returns:
             np.ndarray: (N,N) matrix of causal values.
         """
-        fname = self.cat_fname(spk_name)
+        fname = self.get_fname(spk_name)
         dat = np.fromfile(fname, dtype=np.float64)
-        if causal_type == 'th':
-            return dat[-8:-4] # TE, GC, MI, CC
-        elif causal_type == 'acc':
-            return dat[-4:] # TE, GC, MI, CC
+        if causal_type in ('th', 'acc'):
+            if dat.shape[0] % (self.order[1]+12) == 0:
+                raise ValueError(f"causal_type '{causal_type}' is not supported for latest version datafile.")
+            if causal_type == 'th':
+                return dat[-8:-4] # TE, GC, MI, CC
+            elif causal_type == 'acc':
+                return dat[-4:] # TE, GC, MI, CC
         else:
-            dat = dat[:-9].reshape((-1, self.order[1]+12))
-            return dat[:, self.causal_map[causal_type]].reshape(self.N, self.N)
+            if dat.shape[0] % (self.order[1]+12) != 0:
+                dat = dat[:-9].reshape((-1, self.order[1]+12))
+            else:
+                dat = dat.reshape((-1, self.order[1]+12))
+            if dat.shape[0] != self.N*self.N:
+                return dat[:, self.causal_map[causal_type]]
+            else:
+                return dat[:, self.causal_map[causal_type]].reshape(self.N, self.N)
 
 
 class CausalityAPI(CausalityIO):
-    # dat[0]  : TE value
-    # dat[1]  :	x index 
-    # dat[2]  :	y index 
-    #   p = p(x_{n+1}, x-, y-)
-    # dat[3]  : p(x_{n+1}=1)
-    # dat[4]  : p(y_{n}=1)
-    # dat[5]  : p0 = p(0,0,0) + p(1,0,0)
-    # dat[6]  : dpl(or more) = p(x=1|x-, y-_l = 1) - p(x=1|x-, y-_l = 0)
-    # dat[7]  : \Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
-    # dat[7+order]  : TE(l=5)
-    # dat[8+order]  : GC
-    # dat[9+order] : \sum{TDMI}
-    # dat[10+order] : \sum{NCC^2}
-    # dat[11+order] : approx for 2*\sum{TDMI}
-    # y-->x.  Total N*N*(k+12)+9, +output L,threshold*4, accuracy*4. 
+    """
+    dat[0]  : TE value
+    dat[1]  :	x index 
+    dat[2]  :	y index 
+      p = p(x_{n+1}, x-, y-)
+    dat[3]  : p(x_{n+1}=1)
+    dat[4]  : p(y_{n}=1)
+    dat[5]  : p0 = p(0,0,0) + p(1,0,0)
+    dat[6]  : dpl(or more) = p(x=1|x-, y-_l = 1) - p(x=1|x-, y-_l = 0)
+    dat[7]  : \Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
+    dat[7+order]  : TE(l=5)
+    dat[8+order]  : GC
+    dat[9+order] : \sum{TDMI}
+    dat[10+order] : \sum{NCC^2}
+    dat[11+order] : approx for 2*\sum{TDMI}
+    y-->x.  Total N*N*(k+12)+9.
+    """
 
     def __init__(self, dtype='HH', N=2, order=(1,1), bin=0.5,
                  delay=0, T=None, p=0.25, s=0.1,
@@ -242,14 +257,17 @@ class CausalityAPI(CausalityIO):
         result = np.zeros(len(val_range), dtype=float)
         for i, val in enumerate(val_range):
             # print(f'Load data from {self.cat_fname(spk_fname=spk_fname, **{pm_name:val},):s} ...')
-            dat = np.fromfile(self.cat_fname(spk_fname=spk_fname, **{pm_name:val}), dtype=np.float64)
+            dat = np.fromfile(self.get_fname(spk_fname=spk_fname, **{pm_name:val}), dtype=np.float64)
             if pm_name == 'order':
                 self.order = val
-            first = dat[:-9].reshape((-1, self.order[1]+12))
+            if dat.shape[0] % (self.order[1]+12) != 0:
+                first = dat[:-9].reshape((-1, self.order[1]+12))
+            else:
+                first = dat.reshape((-1, self.order[1]+12))
             result[i] = first[id, self.causal_map[causal_type]]
         return result
 
-    def cat_fname(self, spk_fname:str=None, **kwargs):
+    def get_fname(self, spk_fname:str=None, **kwargs):
         pm_buff = dict(
             dtype=self.dtype, 
             midterm=self.midterm, 
@@ -279,7 +297,7 @@ class CausalityAPI3(CausalityAPI):
         self.s1 = s1
         self.s2 = s2
     
-    def cat_fname(self, **kwargs):
+    def get_fname(self, **kwargs):
         pm_buff = dict(
             dtype=self.dtype, 
             midterm=self.midterm, 
@@ -314,8 +332,11 @@ class CausalityAPI3(CausalityAPI):
         result = np.zeros_like(val_range).astype(float)
         for i, val in enumerate(val_range):
             # print(f'Load data from {self._cat_fname(**{pm_name:val}, **kwargs):s} ...')
-            dat = np.fromfile(self.cat_fname(**{pm_name:val}), dtype=np.float64)
-            first = dat[:-9].reshape((-1, self.order[1]+12))
+            dat = np.fromfile(self.get_fname(**{pm_name:val}), dtype=np.float64)
+            if dat.shape[0] % (self.order[1]+12) != 0:
+                first = dat[:-9].reshape((-1, self.order[1]+12))
+            else:
+                first = dat.reshape((-1, self.order[1]+12))
             # second = dat[-9:]
             result[i] = first[id, self.causal_map[causal_type]]
         return result

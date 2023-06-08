@@ -469,39 +469,35 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
     N = int(pm_causal['Ne'] + pm_causal['Ni'])
     fname = pm_causal['fname']
     cau = CausalityAPI(dtype=pm_causal['path_input'].split('/')[-3], N=N, **pm_causal)
-    fig, ax = plt.subplots(1,2, figsize=(13,6))
-    fig_data = {
-        'raw_data':{},
-        'roc_gt':{},
-        'roc_blind':{},
-        'hist': {},
-        'hist_conn': {},
-        'hist_disconn':{},
-        'hist_error':{},
-        'edges':{},
-        'log_norm_fit_pval': {},
-        'opt_th': {},
-        'kmean_th': {},
-        'acc_gauss': {},
-        'acc_kmeans': {},
-        'ppv_gauss': {},
-        'ppv_kmeans': {},
-    }
+    fig_data_keys = ['raw_data', 'roc_gt', 'roc_blind', 
+        'hist', 'hist_conn', 'hist_disconn', 'hist_error', 'edges', 
+        'log_norm_fit_pval', 'opt_th', 'kmean_th', 
+        'acc_gauss', 'acc_kmeans', 'ppv_gauss', 'ppv_kmeans',
+    ]
+    fig_data = {key: {} for key in fig_data_keys}
 
-    inf_mask = ~np.eye(N, dtype=bool)
-    if EI_mask == 'E':
-        inf_mask[80:, :]=False
-    elif EI_mask == 'I':
-        inf_mask[:80, :]=False
+    # load causal data to determine the shape of mask
+    data_buff = cau.load_from_single(fname, 'TE')
+    if len(data_buff.shape) == 1:
+        inf_mask = ~np.isinf(data_buff)
+    elif len(data_buff.shape) == 2:
+        inf_mask = ~np.eye(N, dtype=bool)
+        if EI_mask == 'E':
+            inf_mask[int(pm_causal['Ne']):, :]=False
+        elif EI_mask == 'I':
+            inf_mask[:int(pm_causal['Ne']), :]=False
+    else:
+        raise ValueError('data shape error!')
+
     if hist_range is None:
         # determine histogram value range
-        data_buff = cau.load_from_single(fname, 'TE')
         if np.any(data_buff[inf_mask]<=0):
             print('WARNING: some negative entities occurs!')
             inf_mask[data_buff<=0] = False
         data_buff = np.log10(data_buff[inf_mask])
         hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
 
+    fig, ax = plt.subplots(1,2, figsize=(13,6))
     ax_hist = [inset_axes(axi, width="100%", height="100%",
                 bbox_to_anchor=(.30, .20, .60, .40),
                 bbox_transform=axi.transAxes, loc='center', 
@@ -529,10 +525,15 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
         conn[conn_raw[0].astype(int), conn_raw[1].astype(int)] = True
         conn_weight[conn_raw[0].astype(int), conn_raw[1].astype(int)] = conn_raw[2]
 
+    if 'mask_file' in pm_causal:
+        mask = np.fromfile(pm_causal['path_output']+f"EE/N={N:d}/"+pm_causal['mask_file'], dtype=float).reshape(2,-1)
+        mask = mask.astype(int)
+        conn = conn[mask[0], mask[1]]
+        conn_weight = conn_weight[mask[0], mask[1]]
+
     ratio = np.sum(conn[inf_mask])/np.sum(inf_mask)
     # plot the distribution of connectivity weight if exist
     if conn_weight is not None:
-        conn_weight= conn_weight.reshape(N,N)
         axins = inset_axes(ax[0], width="100%", height="100%",
                     bbox_to_anchor=(.05, .40, .45, .3),
                     bbox_transform=ax[0].transAxes, loc='center',)
