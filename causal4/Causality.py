@@ -416,7 +416,7 @@ def scan_pm_single(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwarg
         p.join()
     return result
 
-def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30):
+def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30, dry_run=False):
     """scan over delay values for specific setting of systems.
         spk_fname mode used in get_fname system, and pm_causal['fname'] are used.
 
@@ -434,7 +434,7 @@ def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30):
     else:
         pm = pm_causal
     spk_fname = pm['fname']
-    dtype = spk_fname.split('p=')[0]
+    dtype = pm['path_input'].split('/')[-3]
     N = pm['Ne']+pm['Ni']
     midterm = 'data/'
     if pm['Ne']*pm['Ni'] > 0:
@@ -454,10 +454,18 @@ def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30):
     ##%%
     # run cal_causality to calculate causalities
     if force_regen:
-        _ = scan_pm_single('delay', delay, True, mp=mp, **pm)
+        if dry_run:
+            print('Dry run, no calculation.')
+            print('Delay', delay, 'needs to be calculated.')
+        else:
+            _ = scan_pm_single('delay', delay, True, mp=mp, **pm)
     else:
-        if delay_not_gen.shape[0] > 0:
-            _ = scan_pm_single('delay', delay_not_gen, True, mp=mp, **pm)
+        if dry_run:
+            print('Dry run, no calculation.')
+            print('Delay', delay_not_gen, 'needs to be calculated.')
+        else:
+            if delay_not_gen.shape[0] > 0:
+                _ = scan_pm_single('delay', delay_not_gen, True, mp=mp, **pm)
 
 # %%
 def scan_pm_multi(pm:str, val_range:np.ndarray, verbose=False, mp=None, fname_kws={}, **kwargs):

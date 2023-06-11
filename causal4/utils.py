@@ -369,5 +369,64 @@ def scan_s_process(dtype:str, s:float, pm_causal:dict,
             arr[idx]=cau.load_from_single(_pm_causal['fname'], 'TE')
     return arr
 
+from scipy import signal
+from typing import Union
+def spk_power_spectrum(pm:dict, fs: float=1000, idx:Union[int, list]=None,
+                       T_range:tuple=(0,1000)) -> np.ndarray:
+    """
+    Calculates the power spectrum of a binary spike train.
+
+    Args:
+        pm (dict): Parameter dictionary.
+        fs (float): Sampling frequency of the spike train.
+        idx (Union[int, list]): 
+            Index of the neuron to calculate the power spectrum.
+            None for calculating the average power spectrum.
+            Defaults to None.
+        T_range (tuple): Time range of the spike train.
+
+    Returns:
+        freq (np.ndarray): Frequency array.
+        psd (np.ndarray): Power spectrum.
+    """
+    N = int(pm['Ne']+pm['Ni'])
+    spk_fname = f"{pm['path_input']}EE/N={N:d}/{pm['fname']:s}_spike_train.dat"
+    n_time = 100
+    with open(spk_fname, 'rb') as f:
+        data_buff = f.read(8*2*N*n_time)
+        spk_data = np.frombuffer(data_buff, dtype=np.float64).reshape(-1,2)
+        while spk_data[-1,0] < T_range[1]:
+            data_buff = f.read(8*2*N*n_time)
+            data_len = int(len(data_buff)/16)
+            if data_len == 0:
+                print('reaching end of file')
+                break
+            spk_data_more = np.frombuffer(data_buff, dtype=np.float64).reshape(-1,2)
+            spk_data = np.concatenate((spk_data, spk_data_more), axis=0)
+    T_mask = (spk_data[:,0]>=T_range[0]) & (spk_data[:,0]<=T_range[1])
+    spk_data = spk_data[T_mask,:]
+    
+    if idx is None:
+        idx = np.arange(N)
+    if hasattr(idx, '__len__'):
+        for i in idx:
+            binary_spk = np.zeros(int(spk_data[-1,0]/1e3*fs)+1, dtype=float)
+            binary_spk[(spk_data[spk_data[:,1]==i,0]/1e3*fs).astype(int)] = 1
+            # Calculate the Fourier transform of the spike train
+            freq, _psd = signal.welch(
+                binary_spk, fs, 
+                nperseg=binary_spk.shape[0]/2, noverlap=binary_spk.shape[0]/4)
+            psd = _psd if i==idx[0] else psd+_psd
+        return freq, psd/len(idx)
+    elif isinstance(idx, int):
+        binary_spk = np.zeros(int(spk_data[-1,0]/1e3*fs)+1, dtype=float)
+        binary_spk[(spk_data[spk_data[:,1]==idx,0]/1e3*fs).astype(int)] = 1
+        # Calculate the Fourier transform of the spike train
+        return signal.welch(
+            binary_spk, fs,
+            nperseg=binary_spk.shape[0]/2, noverlap=binary_spk.shape[0]/4)
+    else:
+        raise TypeError('idx must be int or list of int.')
+
 if __name__ == '__main__':
     pass
