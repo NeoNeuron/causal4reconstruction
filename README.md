@@ -24,8 +24,8 @@ make all -j
 ### Install Python utilities
 
 ```bash
-conda create --name my_environment --file requirements.txt
-conda activate my_environment
+conda create -n causal4 python=3.10 --file requirements.txt -c conda-forge
+conda activate causal4
 pip install -e .
 pip install -U brainpy
 pip install brainpylib
