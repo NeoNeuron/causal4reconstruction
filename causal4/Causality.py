@@ -386,7 +386,8 @@ def run(verbose=False, shuffle=False, **kwargs):
     if result.returncode != 0:
         print(result.stderr)
 # %%
-from multiprocessing import Pool
+# from multiprocessing import Pool
+from ray.util.multiprocessing import Pool
 def scan_pm_single(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwargs):
     """ Scan causality based on the single data file.
         Call C/C++ interface to calculate causal values.
@@ -406,10 +407,16 @@ def scan_pm_single(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwarg
     if mp is None:
         result = [run(verbose, **{pm:val}, **kwargs) for val in val_range]
     else:
+        if 'n_thread' in pm:
+            n_cpu = pm['n_thread']
+        else:
+            n_cpu = 1
+        p = Pool(ray_address="auto", processes=mp,
+                 ray_remote_args={"num_cpus": n_cpu})
         p = Pool(mp)
         result = [
             p.apply_async(
-            func = run, args=(verbose,), kwds = dict(**{pm:val},**kwargs),
+            func = run, args=(verbose,), kwargs = dict(**{pm:val},**kwargs),
             ) for val in val_range
         ]
         p.close()
