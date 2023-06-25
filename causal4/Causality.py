@@ -407,13 +407,13 @@ def scan_pm_single(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwarg
     if mp is None:
         result = [run(verbose, **{pm:val}, **kwargs) for val in val_range]
     else:
-        if 'n_thread' in pm:
-            n_cpu = pm['n_thread']
+        if 'n_thread' in kwargs:
+            n_cpu = kwargs['n_thread']
         else:
             n_cpu = 1
+        print(f'n_cpu: {n_cpu}')
         p = Pool(ray_address="auto", processes=mp,
-                 ray_remote_args={"num_cpus": n_cpu})
-        p = Pool(mp)
+                 ray_remote_args={"num_cpus": 40})
         result = [
             p.apply_async(
             func = run, args=(verbose,), kwargs = dict(**{pm:val},**kwargs),

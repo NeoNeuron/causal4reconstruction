@@ -679,7 +679,7 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
     return fig_data
 
 import struct
-def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax=None):
+def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax=None, **kwargs):
     """plot sample raster plot given network parameters
 
     Args:
@@ -711,7 +711,7 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
     else:
         fig = ax.get_figure()
     mask = (spk_data[:,0] > xrange[0]) * (spk_data[:,0] < xrange[1])
-    ax.plot(spk_data[mask, 0], spk_data[mask, 1], '|')
+    ax.plot(spk_data[mask, 0], spk_data[mask, 1], '|', **kwargs)
     ax.set_xlim(*xrange)
     ax.set_xlabel('Time (ms)')
     print(f"mean firing rate is {spk_data.shape[0]/spk_data[-1,0]/N*1000.:.3f} Hz")
