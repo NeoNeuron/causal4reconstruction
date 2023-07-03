@@ -1,5 +1,5 @@
 # define compiler and path of libs
-CPPFLAGS = --std=c++11 -w -I $(DIR_INC) -I HH
+CPPFLAGS = --std=c++11 -w -I $(DIR_INC)
 CXXFLAGS = -fopenmp -g -O2 
 LDLIBS = -lboost_program_options -fopenmp
 # define variable path
@@ -34,7 +34,7 @@ $(DIR_BIN)/simHHcon : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_HHcon)
 	$(CXX) $(CPPFLAGS) HHcon/main.cpp -o $(DIR_BIN)/simHHcon $(LDLIBS)
 
 $(DIR_BIN)/simLorenz : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Lorenz) 
-	$(CXX) $(CPPFLAGS) Lorenz/main.cpp -o $(DIR_BIN)/simLorenz $(LDLIBS)
+	$(CXX) $(CPPFLAGS) -O2 Lorenz/main.cpp -o $(DIR_BIN)/simLorenz $(LDLIBS)
 
 $(DIR_BIN)/simLcon : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Lcon) 
 	$(CXX) $(CPPFLAGS) Lcon/main.cpp -o $(DIR_BIN)/simLcon $(LDLIBS)
