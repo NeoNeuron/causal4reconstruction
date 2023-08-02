@@ -413,7 +413,7 @@ def scan_pm_single(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwarg
             n_cpu = 1
         print(f'n_cpu: {n_cpu}')
         p = Pool(ray_address="auto", processes=mp,
-                 ray_remote_args={"num_cpus": 40})
+                 ray_remote_args={"num_cpus": n_cpu})
         result = [
             p.apply_async(
             func = run, args=(verbose,), kwargs = dict(**{pm:val},**kwargs),
@@ -457,7 +457,7 @@ def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30, dr
         if not os.path.isfile(fname_buff):
             # print('[WARNING]: ' + fname_buff + ' not exist.')
             delay_not_gen.append(val)
-    delay_not_gen = np.array(delay_not_gen)
+    delay_not_gen = np.asarray(delay_not_gen)
     ##%%
     # run cal_causality to calculate causalities
     if force_regen:
