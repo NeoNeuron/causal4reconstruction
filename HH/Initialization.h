@@ -61,7 +61,7 @@ void Create_connect_matrix(long& seed)
 	CS = new double *[N];
 	for (int i = 0; i < N; i++)
 		CS[i] = new double[N]{0};
-	long seed1 = 15, seed2 = 43;
+	long seed1 = 15, seed2 = 43;	// seed for coupling strength (fixed!!!)
 
 	for (int i = 0; i < 1000; i++)
 	{
@@ -397,7 +397,7 @@ void Initialization(long &seed0,long &seed2)
 
 	neu = new struct neuron[N];
 
-	long Seed = 16071910018, Seed1 = 5097409033;
+	long Seed = 16071910018, Seed1 = 5097409033; // seed for Poisson strength (fixed!!!)
 	for (int i = 0; i < 1000; i++)
 	{
 		Random(Seed), Random(Seed1);
@@ -434,7 +434,7 @@ void Initialization(long &seed0,long &seed2)
 		{
 			neu[i].t = 0;
 			neu[i].Nu = Decide_Nu(i,Seed,Seed1);
-			neu[i].v = -65 +Random(Seed) * 0;
+			neu[i].v = -65 +Random(Seed) * 15;
 			neu[i].dv = 0;
 			neu[i].m = alpha_m(neu[i].v) / (alpha_m(neu[i].v) + beta_m(neu[i].v));
 			neu[i].h = alpha_h(neu[i].v) / (alpha_h(neu[i].v) + beta_h(neu[i].v));

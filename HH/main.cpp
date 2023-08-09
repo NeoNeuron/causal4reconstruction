@@ -22,7 +22,7 @@
 #include "Delete.h"
 
 int main(int argc,char **argv) {
-	long seed, seed0, seed1, seed2;
+	long seed_conn, seed_dym;
 	clock_t t0, t1;	 
 	char str[200];
 	double MLE;
@@ -40,6 +40,7 @@ int main(int argc,char **argv) {
     ("NE",          po::value<int>()->default_value(2), "num of E neurons")
     ("NI",          po::value<int>()->default_value(0), "num of I neurons")
     ("seed",        po::value<string>()->default_value("11 11"), "seed to generate connectivity matrix and init Poisson generators.")
+    ("TrialID",     po::value<int>()->default_value(0), "Default: 0. for multiple trials with fixed CS and change Poisson seeds")
     ("T_Max",       po::value<double>()->default_value(1e7), "Simulation time period, unit ms.")
     ("T_step",      po::value<double>()->default_value(0.2), "Time step, unit ms.")
     ("S",           po::value<string>()->default_value("0.02 0.02 0.02 0.02"), "Synaptic coupling strength")
@@ -91,19 +92,17 @@ int main(int argc,char **argv) {
 
   vector<int> seed_buff;
 	str2vec(vm["seed"].as<string>(), seed_buff);
-	seed = seed_buff[0]; 
-	seed1 = seed_buff[1];
+	seed_conn = seed_buff[0];  // Create connect matrix
+	seed_dym  = seed_buff[1];  // Initialization & Poisson
 
 	Read_parameters(vm);
 	out_put_filename();
-	seed0 = seed;    // Create connect matrix
-	seed2 = seed1;  // Initialization & Poisson
-	Initialization(seed0, seed2);
+	Initialization(seed_conn, seed_dym);
 
   int T_Max_current_run = T_Max;
 	t0 = clock();
 	if (Lyapunov)
-		MLE = Largest_Lyapunov(seed2, 1, T_step);
+		MLE = Largest_Lyapunov(seed_dym, 1, T_step);
 	else
 		Run_model();
 

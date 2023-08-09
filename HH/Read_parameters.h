@@ -98,6 +98,7 @@ void Read_parameters(po::variables_map& vm)
 		strcat(file, "EI/N=");
 	sprintf(ch, "%d", N), strcat(file, ch), strcat(file, "/");
 
+	TrialID = vm["TrialID"].as<int>();
 	// initialize folder
 	_mkdir(file);
 }
