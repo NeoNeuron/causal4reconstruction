@@ -184,7 +184,7 @@ void out_put_filename()
 	strcpy(filename, str);
 	printf("T_Max=%0.2e dt=%0.3f\n", T_Max,T_step);
 
-	if (TrialID)  // for multiple trials with fixed CS and  Poisson seeds 
+	if (TrialID)  // for multiple trials with fixed CS and Poisson seeds 
 	{
 		strcat(str, "-"), sprintf(c, "%d", TrialID), strcat(str, c);
 	}

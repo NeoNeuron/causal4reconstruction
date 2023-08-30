@@ -338,9 +338,6 @@ void Run_model()
 	T_Max += neu[0].t;
 	double s = -100, ss = neu[0].v;
 	double I_th;
-	// long seed_record_Nu = 140719001;
-	// for (int i = 0; i < 973; i++)
-	// 	Random(seed_record_Nu);
 
 	ts = clock(), ts0 = ts;
 	while (t < T_Max)

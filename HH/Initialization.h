@@ -1,4 +1,4 @@
-double Decide_S(int i, int j, long &seed, long &seed1)  // i-->j
+double Decide_S(int i, int j, std::mt19937 &rng)  // i-->j
 {
 	// scaling
 	double s;
@@ -11,49 +11,53 @@ double Decide_S(int i, int j, long &seed, long &seed1)  // i-->j
 	else
 		s = S[3];
 
-	if (random_S == 0)
+	if (random_S == 0) {
 		return s;
-	else if (random_S == 1)						// uniform [0, 2s]
-		return Random(seed) * 2 * s;
-	else if (random_S == 2)						// gauss N(s,(s/4)^2)
-		return abs(sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*s / 4 + s);
-	else if (random_S == 3)                     // Exponential E(s)
-		return -log(1 - Random(seed)) * s;
-	else		// Log normal sigma=0.397 mu=log(s)-sigma^2/2.  Std/Mean=0.93  X~exp(mu+sigma*Z),Z~N(0,1)
-	{
-		double sigma, mu;
-		sigma = 0.397, mu = log(s) - sigma * sigma / 2;
-		double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sigma + mu;
-		return exp(b);
+	} else if (random_S == 1) {						// uniform [0, 2s]
+		std::uniform_real_distribution<> dist(0.0, 2.0*s);
+		return dist(rng);
+	} else if (random_S == 2) {					// gauss N(s,(s/4)^2)
+		std::normal_distribution<> dist(s, s/4.0);
+		return dist(rng);
+	} else if (random_S == 3) {                    // Exponential E(s)
+		std::exponential_distribution<> dist(s);
+		return dist(rng);
+	} else {
+		std::lognormal_distribution<> dist(-0.702, 0.9355);		// rat visual cortex, from Song et al., 2005
+		return dist(rng);
+		// Log normal sigma=0.397 mu=log(s)-sigma^2/2.  Std/Mean=0.93  X~exp(mu+sigma*Z),Z~N(0,1)
+		// double sigma, mu;
+		// sigma = 0.397, mu = log(s) - sigma * sigma / 2;
+		// double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sigma + mu;
+		// return exp(b);
 	}
 }
 
-double Decide_Nu(int i, long &seed, long &seed1)  // i-->j
+double Decide_Nu(int i, std::mt19937 &rng)  // i-->j
 {
 	double s = Nu;
-	if (random_Nu == 0)
+	if (random_Nu == 0) {
 		return s;
-	else if (random_Nu == 1)					 // uniform [0, 2s]
-		return Random(seed) * 2 * s;
-	else if (random_Nu == 2)					 // gauss N(s,(s/4)^2)
-		return abs(sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*s / 4 + s);
-	else if (random_Nu == 3)                     // Exponential E(s)
-		return -log(1 - Random(seed)) * s;
-	else										 // Log normal, log(X)~N(mu,sigma^2)
-	{
+	} else if (random_Nu == 1) {				 // uniform [0, 2s]
+		std::uniform_real_distribution<> dist(0.0, 2.0*s);
+		return dist(rng);
+	} else if (random_Nu == 2) { 					 // gauss N(s,(s/4)^2)
+		std::normal_distribution<> dist(s, s/4.0);
+		return dist(rng);
+	} else if (random_Nu == 3) {                     // Exponential E(s)
+		std::exponential_distribution<> dist(s);
+		return dist(rng);
+	} else {										 // Log normal, log(X)~N(mu,sigma^2)
 		double a = log(s);
-		double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sqrt(-a / 2) + 1.25*a;
-		return exp(b);
+		std::lognormal_distribution<> dist(1.25*a, sqrt(-a/2));
+		return dist(rng);
+		// double b = sqrt(-2 * log(Random(seed)))*cos(2 * PI*Random(seed1))*sqrt(-a / 2) + 1.25*a;
+		// return exp(b);
 	}
-		
 }
 
-void Create_connect_matrix(long& seed)
-{
-	long seed0 = seed;
-	for (int i = 0; i < 512; i++)
-		Random(seed0);
-
+void Create_connect_matrix(std::mt19937 &rng) {
+	std::uniform_real_distribution<> uniform_dist(0.0, 1.0);
 	Connect_Matrix = new double *[N];
 	for (int i = 0; i < N; i++)
 		Connect_Matrix[i] = new double[N]{0};
@@ -61,12 +65,6 @@ void Create_connect_matrix(long& seed)
 	CS = new double *[N];
 	for (int i = 0; i < N; i++)
 		CS[i] = new double[N]{0};
-	long seed1 = 15, seed2 = 43;	// seed for coupling strength (fixed!!!)
-
-	for (int i = 0; i < 1000; i++)
-	{
-		Random(seed1), Random(seed2);
-	}
 
 	if (N == 3)
 	{
@@ -106,14 +104,10 @@ void Create_connect_matrix(long& seed)
 		{
 			for (int j = 0; j < N; j++)
 			{
-				if (i != j && Random(seed) < P_c)
+				if (i != j && uniform_dist(rng) < P_c)
 				{
 					Connect_Matrix[i][j] = 1;
-					CS[i][j] = Decide_S(i, j, seed0, seed1);
-					for (int tt = 0; tt < 500; tt++)
-					{
-						Random(seed0), Random(seed1), Random(seed2);
-					}					
+					CS[i][j] = Decide_S(i, j, rng);
 				}
 			}
 		}
@@ -134,10 +128,10 @@ void Create_connect_matrix(long& seed)
 				int id0 = (i + j) % N;
 				int id1 = (i - j + N) % N;
 				Connect_Matrix[i][id0] = 1;
-				CS[i][id0] = Decide_S(i, id0, seed0, seed1);
+				CS[i][id0] = Decide_S(i, id0, rng);
 
 				Connect_Matrix[i][id1] = 1;
-				CS[i][id1] = Decide_S(i, id0, seed0, seed1);
+				CS[i][id1] = Decide_S(i, id0, rng);
 			}
 		}
 
@@ -387,7 +381,7 @@ void Initial_library_trace()
 	}
 }
 
-void Initialization(long &seed0,long &seed2)
+void Initialization(std::mt19937 &rng_conn, std::mt19937 &rng_dym)
 {
 	if (Lib_method)
 		Initialize_library();
@@ -397,12 +391,7 @@ void Initialization(long &seed0,long &seed2)
 
 	neu = new struct neuron[N];
 
-	long Seed = 16071910018, Seed1 = 5097409033; // seed for Poisson strength (fixed!!!)
-	for (int i = 0; i < 1000; i++)
-	{
-		Random(Seed), Random(Seed1);
-	}
-	long PNseed = seed0; /// Poisson seed
+	long PNseed = 16071910018; /// Poisson seed
 
 	if (TrialID) // multiple trials case for Poisson seeds
 	{
@@ -430,11 +419,11 @@ void Initialization(long &seed0,long &seed2)
 		}
 		fclose(fp_buff);
 	} else {
-		for (int i = 0; i < N; i++)
-		{
+		std::uniform_real_distribution<> uniform_dist(0.0, 1.0);
+		for (int i = 0; i < N; i++) {
 			neu[i].t = 0;
-			neu[i].Nu = Decide_Nu(i,Seed,Seed1);
-			neu[i].v = -65 +Random(Seed) * 15;
+			neu[i].Nu = Decide_Nu(i,rng_dym);
+			neu[i].v = -65 +uniform_dist(rng_dym) * 15;
 			neu[i].dv = 0;
 			neu[i].m = alpha_m(neu[i].v) / (alpha_m(neu[i].v) + beta_m(neu[i].v));
 			neu[i].h = alpha_h(neu[i].v) / (alpha_h(neu[i].v) + beta_h(neu[i].v));
@@ -462,12 +451,10 @@ void Initialization(long &seed0,long &seed2)
 			neu[i].state = 1;
 		}
 	}
-	for (int j = 0; j < 1000; j++)
-		Random(seed0);
 	if (full_toggle) {
 		Assign_CS();
 	} else {
-		Create_connect_matrix(seed0);
+		Create_connect_matrix(rng_conn);
 	}
 	Record_connect_matrix();
 

@@ -94,10 +94,11 @@ int main(int argc,char **argv) {
 	str2vec(vm["seed"].as<string>(), seed_buff);
 	seed_conn = seed_buff[0];  // Create connect matrix
 	seed_dym  = seed_buff[1];  // Initialization & Poisson
+  std::mt19937 rng_conn(seed_conn), rng_dym(seed_dym);
 
 	Read_parameters(vm);
 	out_put_filename();
-	Initialization(seed_conn, seed_dym);
+	Initialization(rng_conn, rng_dym);
 
   int T_Max_current_run = T_Max;
 	t0 = clock();
