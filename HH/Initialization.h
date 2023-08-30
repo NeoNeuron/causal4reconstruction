@@ -24,7 +24,7 @@ double Decide_S(int i, int j, std::mt19937 &rng)  // i-->j
 		return dist(rng);
 	} else {
 		std::lognormal_distribution<> dist(-0.702, 0.9355);		// rat visual cortex, from Song et al., 2005
-		return dist(rng);
+		return dist(rng) / 34.07;	// calibrate under the resting voltage (65 mV) of HH neuron
 		// Log normal sigma=0.397 mu=log(s)-sigma^2/2.  Std/Mean=0.93  X~exp(mu+sigma*Z),Z~N(0,1)
 		// double sigma, mu;
 		// sigma = 0.397, mu = log(s) - sigma * sigma / 2;
