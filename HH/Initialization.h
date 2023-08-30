@@ -20,7 +20,7 @@ double Decide_S(int i, int j, std::mt19937 &rng)  // i-->j
 		std::normal_distribution<> dist(s, s/4.0);
 		return dist(rng);
 	} else if (random_S == 3) {                    // Exponential E(s)
-		std::exponential_distribution<> dist(s);
+		std::exponential_distribution<> dist(1/s);
 		return dist(rng);
 	} else {
 		std::lognormal_distribution<> dist(-0.702, 0.9355);		// rat visual cortex, from Song et al., 2005
@@ -45,7 +45,7 @@ double Decide_Nu(int i, std::mt19937 &rng)  // i-->j
 		std::normal_distribution<> dist(s, s/4.0);
 		return dist(rng);
 	} else if (random_Nu == 3) {                     // Exponential E(s)
-		std::exponential_distribution<> dist(s);
+		std::exponential_distribution<> dist(1/s);
 		return dist(rng);
 	} else {										 // Log normal, log(X)~N(mu,sigma^2)
 		double a = log(s);
