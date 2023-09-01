@@ -424,6 +424,7 @@ void Initialization(std::mt19937 &rng_conn, std::mt19937 &rng_dym)
 			neu[i].t = 0;
 			neu[i].Nu = Decide_Nu(i,rng_dym);
 			neu[i].v = -65 +uniform_dist(rng_dym) * 15;
+			// neu[i].v = -65;   // Uncomment for EPSP calibration
 			neu[i].dv = 0;
 			neu[i].m = alpha_m(neu[i].v) / (alpha_m(neu[i].v) + beta_m(neu[i].v));
 			neu[i].h = alpha_h(neu[i].v) / (alpha_h(neu[i].v) + beta_h(neu[i].v));
@@ -439,11 +440,12 @@ void Initialization(std::mt19937 &rng_conn, std::mt19937 &rng_dym)
 			neu[i].last_fire_time = -1e5;
 			neu[i].if_fired = 0;
 			neu[i].Poisson_input_time = new double[int(T_step * 100 * 2) + 5];
+			// neu[i].Poisson_input_time[0] = 0;   // Uncomment for EPSP calibration
 			for (int j = 0; j < 500; j++)
 				Random(PNseed);
 			neu[i].seed = PNseed;
 			neu[i].Poisson_input_num = -1;
-
+			// neu[i].Poisson_input_num = 1;    // Uncomment for EPSP calibration
 			neu[i].wait_strength_E = 0;
 			neu[i].wait_strength_I = 0;
 
