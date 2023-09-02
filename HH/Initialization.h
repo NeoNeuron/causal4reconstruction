@@ -441,8 +441,8 @@ void Initialization(std::mt19937 &rng_conn, std::mt19937 &rng_dym)
 			neu[i].if_fired = 0;
 			neu[i].Poisson_input_time = new double[int(T_step * 100 * 2) + 5];
 			// neu[i].Poisson_input_time[0] = 0;   // Uncomment for EPSP calibration
-			for (int j = 0; j < 500; j++)
-				Random(PNseed);
+			for (int j = 0; j < 500; j++)	// Comment for EPSP calibration
+				Random(PNseed);				// Comment for EPSP calibration
 			neu[i].seed = PNseed;
 			neu[i].Poisson_input_num = -1;
 			// neu[i].Poisson_input_num = 1;    // Uncomment for EPSP calibration
