@@ -473,6 +473,7 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
         'hist', 'hist_conn', 'hist_disconn', 'hist_error', 'edges', 
         'log_norm_fit_pval', 'opt_th', 'kmean_th', 
         'acc_gauss', 'acc_kmeans', 'ppv_gauss', 'ppv_kmeans',
+        'auc_gauss', 'auc_kmeans',
     ]
     fig_data = {key: {} for key in fig_data_keys}
 
@@ -519,17 +520,15 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
             conn_weight = None
     else:
         print('>> Load sparse matrix:')
-        conn_raw = conn_raw.reshape(3,-1)
+        conn_raw = conn_raw.reshape(2,-1)
         conn = np.zeros((N,N), dtype=bool)
-        conn_weight = np.zeros((N,N), dtype=float)
         conn[conn_raw[0].astype(int), conn_raw[1].astype(int)] = True
-        conn_weight[conn_raw[0].astype(int), conn_raw[1].astype(int)] = conn_raw[2]
+        conn_weight = None
 
     if 'mask_file' in pm_causal:
         mask = np.fromfile(pm_causal['path_output']+f"EE/N={N:d}/"+pm_causal['mask_file'], dtype=float).reshape(2,-1)
         mask = mask.astype(int)
         conn = conn[mask[0], mask[1]]
-        conn_weight = conn_weight[mask[0], mask[1]]
 
     ratio = np.sum(conn[inf_mask])/np.sum(inf_mask)
     # plot the distribution of connectivity weight if exist
@@ -634,7 +633,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
             ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
             ax_hist[1].axvline(threshold, ymax=0.9, color=line_rc[key]['color'], ls='--')
             # plot double Gaussian based ROC
-            label=line_rc[key]['label'] + f" : {-np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2):.3f}"
+            auc = -np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2)
+            fig_data['auc_gauss'][key] = auc
+            label=line_rc[key]['label'] + f" : {auc:.3f}"
             ax[1].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
             # calculate reconstruction accuracy
@@ -651,7 +652,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
 
         fpr, tpr, _ = roc_curve(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask])
         fig_data['roc_gt'][key] = np.vstack((fpr, tpr))
-        label = line_rc[key]['label'] + f" : {roc_auc_score(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask]):.3f}"
+        auc = roc_auc_score(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask])
+        fig_data['auc_kmeans'][key] = auc
+        label = line_rc[key]['label'] + f" : {auc:.3f}"
         ax[0].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
     # print acc, 
@@ -675,7 +678,7 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
         axi.legend(loc='upper left', bbox_to_anchor=(0.55, 0.95), fontsize=14)
 
     plt.tight_layout()
-    fig.savefig(f"image/histogram_of_causal_recon_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
+    fig.savefig(f"image/causal_hist_recon_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}N={pm_causal['Ne']:.0f}_{fname:s}.pdf")
     return fig_data
 
 import struct
