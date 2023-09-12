@@ -7,6 +7,10 @@ import networkx as nx
 plt.rcParams['xtick.labelsize'] = 18
 plt.rcParams['ytick.labelsize'] = 18
 plt.rcParams['axes.labelsize'] = 18
+from pathlib import Path
+REPO_PATH = Path(__file__).parents[1]
+data_path = REPO_PATH/'data'
+fig_path = REPO_PATH/'figure'
 
 # setup line colors
 line_rc = {
