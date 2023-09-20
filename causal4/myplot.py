@@ -462,7 +462,10 @@ def hist_causal_blind(pm_causal, hist_range:tuple=None, fit_p0 = None, return_da
         return fig_data
 
 
-def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_mask=None):
+def ReconstructionAnalysis(
+    pm_causal, hist_range:tuple=None,
+    fit_p0 = None, EI_mask=None, fig_toggle=True,
+    ):
     # ====================
     # Histogram of causal values
     # ====================
@@ -498,15 +501,16 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
         data_buff = np.log10(data_buff[inf_mask])
         hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
 
-    fig, ax = plt.subplots(1,2, figsize=(13,6))
-    ax_hist = [inset_axes(axi, width="100%", height="100%",
-                bbox_to_anchor=(.30, .20, .60, .40),
-                bbox_transform=axi.transAxes, loc='center', 
-                axes_kwargs={'facecolor':[1,1,1,0]}) for axi in ax]
-    for axi in ax_hist:
-        axi.spines['left'].set_visible(False)
-        axi.xaxis.set_major_locator(MaxNLocator(4, integer=True))
-        axi.xaxis.set_major_formatter(sci_formatter)
+    if fig_toggle:
+        fig, ax = plt.subplots(1,2, figsize=(13,6))
+        ax_hist = [inset_axes(axi, width="100%", height="100%",
+                    bbox_to_anchor=(.30, .20, .60, .40),
+                    bbox_transform=axi.transAxes, loc='center', 
+                    axes_kwargs={'facecolor':[1,1,1,0]}) for axi in ax]
+        for axi in ax_hist:
+            axi.spines['left'].set_visible(False)
+            axi.xaxis.set_major_locator(MaxNLocator(4, integer=True))
+            axi.xaxis.set_major_formatter(sci_formatter)
 
     # load connectivity matrix 
     fname_conn = pm_causal['path_output']+f"EE/N={N:d}/" + pm_causal['con_mat']
@@ -533,10 +537,11 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
     ratio = np.sum(conn[inf_mask])/np.sum(inf_mask)
     # plot the distribution of connectivity weight if exist
     if conn_weight is not None:
-        axins = inset_axes(ax[0], width="100%", height="100%",
-                    bbox_to_anchor=(.05, .40, .45, .3),
-                    bbox_transform=ax[0].transAxes, loc='center',)
-        axins.spines['left'].set_visible(False)
+        if fig_toggle:
+            axins = inset_axes(ax[0], width="100%", height="100%",
+                        bbox_to_anchor=(.05, .40, .45, .3),
+                        bbox_transform=ax[0].transAxes, loc='center',)
+            axins.spines['left'].set_visible(False)
 
         zero_mask = conn_weight>0
         if 'LN' in fname_conn:
@@ -545,9 +550,10 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
         else:
             counts, bins = np.histogram(
                 conn_weight[inf_mask*zero_mask], bins=40)
-        axins.bar(bins[:-1], counts, width=bins[1]-bins[0])
-        axins.set_title('Structural Conn', fontsize=12)
-        axins.set_yticks([])
+        if fig_toggle:
+            axins.bar(bins[:-1], counts, width=bins[1]-bins[0])
+            axins.set_title('Structural Conn', fontsize=12)
+            axins.set_yticks([])
         for key in fig_data.keys():
             if key == 'hist':
                 fig_data[key]['conn']  = counts.copy()
@@ -593,7 +599,8 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
             counts, bins = np.histogram(log_TE_buffer, bins=100, range=hist_range,density=True)
             counts_total += counts*ratio_
             fig_data[hist_key][key] = counts*ratio_
-            ax_hist[0].plot(bins[:-1], counts*ratio_, ls=linestyle, **line_rc[key])
+            if fig_toggle:
+                ax_hist[0].plot(bins[:-1], counts*ratio_, ls=linestyle, **line_rc[key])
         fig_data['edges'][key] = bins[:-1].copy()
         fig_data['hist'][key] = counts_total.copy()
 
@@ -606,7 +613,8 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
         try:
             th_km = kmeans_1d(log_cau[inf_mask*nan_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
             fig_data['kmean_th'][key] = th_km
-            ax_hist[0].axvline(th_km, ymax=0.9, lw=1, color=line_rc[key]['color'])
+            if fig_toggle:
+                ax_hist[0].axvline(th_km, ymax=0.9, lw=1, color=line_rc[key]['color'])
             conn_recon = log_cau >= th_km
             error_mask = np.logical_xor(conn, conn_recon)
             fig_data['acc_kmeans'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
@@ -617,7 +625,8 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
             fig_data['ppv_kmeans'][key] = np.nan
 
         # Double Gaussian Anaylsis
-        ax_hist[1].plot(bins[:-1], counts_total, **line_rc[key])
+        if fig_toggle:
+            ax_hist[1].plot(bins[:-1], counts_total, **line_rc[key])
         try:
             popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
             fig_data['opt_th'][key] = threshold
@@ -629,14 +638,16 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
             fig_data['log_norm_fit_pval'][key] = np.nan
             fig_data['roc_blind'][key] = np.nan
         if popt is not None:
-            ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
-            ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
-            ax_hist[1].axvline(threshold, ymax=0.9, color=line_rc[key]['color'], ls='--')
+            if fig_toggle:
+                ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
+                ax_hist[1].plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
+                ax_hist[1].axvline(threshold, ymax=0.9, color=line_rc[key]['color'], ls='--')
             # plot double Gaussian based ROC
             auc = -np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2)
             fig_data['auc_gauss'][key] = auc
-            label=line_rc[key]['label'] + f" : {auc:.3f}"
-            ax[1].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
+            if fig_toggle:
+                label=line_rc[key]['label'] + f" : {auc:.3f}"
+                ax[1].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
             # calculate reconstruction accuracy
             conn_recon = log_cau >= threshold
@@ -654,31 +665,33 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None, fit_p0 = None, EI_m
         fig_data['roc_gt'][key] = np.vstack((fpr, tpr))
         auc = roc_auc_score(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask])
         fig_data['auc_kmeans'][key] = auc
-        label = line_rc[key]['label'] + f" : {auc:.3f}"
-        ax[0].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
+        if fig_toggle:
+            label = line_rc[key]['label'] + f" : {auc:.3f}"
+            ax[0].plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
     # print acc, 
-    acc_kmeans_mean = np.nanmean(list(fig_data['acc_kmeans'].values())) 
-    acc_gauss_mean  = np.nanmean(list(fig_data['acc_gauss'].values())) 
-    ppv_kmeans_mean = np.nanmean(list(fig_data['ppv_kmeans'].values())) 
-    ppv_gauss_mean  = np.nanmean(list(fig_data['ppv_gauss'].values())) 
-    ax[0].text(0.15, 0.90, f"acc={acc_kmeans_mean*100:.2f}%", fontsize=18, transform=ax[0].transAxes)
-    ax[0].text(0.15, 0.83, f"ppv={ppv_kmeans_mean*100:.2f}%", fontsize=18, transform=ax[0].transAxes)
-    ax[1].text(0.15, 0.90, f"acc={acc_gauss_mean*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
-    ax[1].text(0.15, 0.83, f"ppv={ppv_gauss_mean*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
+    if fig_toggle:
+        acc_kmeans_mean = np.nanmean(list(fig_data['acc_kmeans'].values())) 
+        acc_gauss_mean  = np.nanmean(list(fig_data['acc_gauss'].values())) 
+        ppv_kmeans_mean = np.nanmean(list(fig_data['ppv_kmeans'].values())) 
+        ppv_gauss_mean  = np.nanmean(list(fig_data['ppv_gauss'].values())) 
+        ax[0].text(0.15, 0.90, f"acc={acc_kmeans_mean*100:.2f}%", fontsize=18, transform=ax[0].transAxes)
+        ax[0].text(0.15, 0.83, f"ppv={ppv_kmeans_mean*100:.2f}%", fontsize=18, transform=ax[0].transAxes)
+        ax[1].text(0.15, 0.90, f"acc={acc_gauss_mean*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
+        ax[1].text(0.15, 0.83, f"ppv={ppv_gauss_mean*100:.2f}%", fontsize=18, transform=ax[1].transAxes)
 
-    for axi, ax_histi in zip(ax, ax_hist):
-        format_xticks(ax_histi, hist_range)
-        ax_histi.set_ylim(0)
-        ax_histi.set_yticks([])
-        ax_histi.set_xlabel('Causal value')
-        axi=roc_formatter(axi)
-        axi.set_ylabel(axi.get_ylabel(), fontsize=25)
-        axi.set_xlabel(axi.get_xlabel(), fontsize=25)
-        axi.legend(loc='upper left', bbox_to_anchor=(0.55, 0.95), fontsize=14)
+        for axi, ax_histi in zip(ax, ax_hist):
+            format_xticks(ax_histi, hist_range)
+            ax_histi.set_ylim(0)
+            ax_histi.set_yticks([])
+            ax_histi.set_xlabel('Causal value')
+            axi=roc_formatter(axi)
+            axi.set_ylabel(axi.get_ylabel(), fontsize=25)
+            axi.set_xlabel(axi.get_xlabel(), fontsize=25)
+            axi.legend(loc='upper left', bbox_to_anchor=(0.55, 0.95), fontsize=14)
 
-    plt.tight_layout()
-    fig.savefig(f"image/causal_hist_recon_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}N={pm_causal['Ne']:.0f}_{fname:s}.pdf")
+        plt.tight_layout()
+        fig.savefig(f"image/causal_hist_recon_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}N={pm_causal['Ne']:.0f}_{fname:s}.pdf")
     return fig_data
 
 import struct
