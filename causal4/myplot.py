@@ -677,7 +677,7 @@ def ReconstructionFigure(
             ax_hist.axvline(data[th_key][key], ymax=0.9, lw=1, color=line_rc[key]['color'])
 
         fpr, tpr = data[roc_key][key]
-        auc = 0#data[auc_key][key]
+        auc = data[auc_key][key]
         label=line_rc[key]['label'] + f" : {auc:.3f}"
         ax.plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=label)[0].set_clip_on(False)
 
@@ -696,11 +696,12 @@ def ReconstructionFigure(
                 ax_hist.plot(edges, Gaussian(edges, popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
                 ax_hist.plot(edges, Gaussian(edges, popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
 
-    # print acc, 
-    acc_mean = np.nanmean(data[acc_key].values) 
-    ppv_mean = np.nanmean(data[ppv_key].values) 
-    ax.text(0.15, 0.90, f"acc={acc_mean*100:.2f}%", fontsize=18, transform=ax.transAxes)
-    ax.text(0.15, 0.83, f"ppv={ppv_mean*100:.2f}%", fontsize=18, transform=ax.transAxes)
+    # print acc, ppv
+    acc_mean = np.nanmean(list(data[acc_key].values()))
+    ppv_mean = np.nanmean(list(data[ppv_key].values()))
+    texts = []
+    texts.append(ax.text(0.15, 0.90, f"acc={acc_mean*100:.2f}%", fontsize=18, transform=ax.transAxes))
+    texts.append(ax.text(0.15, 0.83, f"ppv={ppv_mean*100:.2f}%", fontsize=18, transform=ax.transAxes))
 
     format_xticks(ax_hist, (edges[0], edges[-1]))
     ax_hist.set_ylim(0)
@@ -712,7 +713,7 @@ def ReconstructionFigure(
     ax.legend(loc='upper left', bbox_to_anchor=(0.55, 0.95), fontsize=14)
 
     plt.tight_layout()
-    return ax, ax_hist, ax_conn
+    return ax, ax_hist, ax_conn, texts
 
 def ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
                            fit_p0 = None, EI_mask=None, fig_toggle=True,
