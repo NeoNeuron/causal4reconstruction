@@ -468,7 +468,7 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
     # ====================
     # Histogram of causal values
     # ====================
-    N = int(pm_causal['Ne'] + pm_causal['Ni'])
+    N = int(pm_causal['Ne']), int(pm_causal['Ni'])
     fname = pm_causal['fname']
     cau = CausalityAPI(dtype=pm_causal['path_input'].split('/')[-3], N=N, **pm_causal)
     fig_data_keys = ['raw_data', 'roc_gt', 'roc_blind', 
@@ -479,6 +479,7 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
     ]
     data = {key: {} for key in fig_data_keys}
 
+    N = N[0]+N[1]
     # load causal data to determine the shape of mask
     data_buff = cau.load_from_single(fname, 'TE')
     if len(data_buff.shape) == 1:
@@ -501,7 +502,15 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
         hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
 
     # load connectivity matrix 
-    fname_conn = pm_causal['path_output']+f"EE/N={N:d}/" + pm_causal['con_mat']
+    if pm_causal['Ne'] * pm_causal['Ni'] > 0:
+        neuron_type = 'EI'
+    elif pm_causal['Ne'] > 0:
+        neuron_type = 'EE'
+    elif pm_causal['Ni'] > 0:
+        neuron_type = 'II'
+    else:
+        raise ValueError('Neuron number error!')
+    fname_conn = pm_causal['path_output']+f"{neuron_type:s}/N={N:d}/" + pm_causal['con_mat']
     conn_raw = np.fromfile(fname_conn, dtype=float)
     if conn_raw.shape[0] >= N*N:
         print('>> Load dense matrix:')
@@ -645,7 +654,7 @@ def ReconstructionFigure(
     ax_hist.xaxis.set_major_locator(MaxNLocator(4, integer=True))
     ax_hist.xaxis.set_major_formatter(sci_formatter)
     # plot the distribution of connectivity weight if exist
-    if sc_hist and (data['hist']['conn'].shape[0] > 0):
+    if sc_hist and hasattr(data['hist']['conn'], '__len__'):
         ax_conn = inset_axes(ax, width="100%", height="100%",
                     bbox_to_anchor=(.05, .40, .45, .3),
                     bbox_transform=ax.transAxes, loc='center',)
@@ -673,7 +682,7 @@ def ReconstructionFigure(
     for key in ('CC', 'MI', 'GC', 'TE'):
         edges = data['edges'][key]
 
-        if data[th_key][key] is not np.nan:
+        if data[th_key][key] not in (np.nan, None):
             ax_hist.axvline(data[th_key][key], ymax=0.9, lw=1, color=line_rc[key]['color'])
 
         fpr, tpr = data[roc_key][key]
@@ -725,10 +734,10 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
         ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=False, ax=ax[1])
         
         fig.savefig(f"image/causal_hist_recon_T={pm_causal['T']:0.0e}"
-                  + f"bin={pm_causal['bin']:.3f}"
-                  + f"delay={pm_causal['delay']:.2f}"
-                  + f"N={pm_causal['Ne']:.0f}"
-                  + f"_{pm_causal['fname']:s}.pdf", transparent=True)
+                + f"bin={pm_causal['bin']:.3f}"
+                + f"delay={pm_causal['delay']:.2f}"
+                + f"N={pm_causal['Ne']:.0f}"
+                + f"_{pm_causal['fname']:s}.pdf", transparent=True)
     return fig_data
 
 def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax=None, **kwargs):
@@ -744,7 +753,15 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
         matplotlib.Figure: figure containing raster plot
     """
     N = int(pm_causal['Ne']+pm_causal['Ni'])
-    spk_fname = f"{pm_causal['path_input']}EE/N={N:d}/{pm_causal['fname']:s}_spike_train.dat"
+    if pm_causal['Ne'] * pm_causal['Ni'] > 0:
+        neuron_type = 'EI'
+    elif pm_causal['Ne'] > 0:
+        neuron_type = 'EE'
+    elif pm_causal['Ni'] > 0:
+        neuron_type = 'II'
+    else:
+        raise ValueError('Neuron number error!')
+    spk_fname = f"{pm_causal['path_input']}{neuron_type:s}/N={N:d}/{pm_causal['fname']:s}_spike_train.dat"
     n_time = 1000
     with open(spk_fname, 'rb') as f:
         data_buff = f.read(8*2*N*n_time)
