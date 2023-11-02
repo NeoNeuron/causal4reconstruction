@@ -27,8 +27,10 @@ make all -j
 conda create -n causal4 python=3.10 --file requirements.txt -c conda-forge
 conda activate causal4
 pip install -e .
+pip install --upgrade "jax[cpu]"
 pip install -U brainpy
 pip install brainpylib
+pip install -U "ray[default]"
 ```
 
 ## Usage
