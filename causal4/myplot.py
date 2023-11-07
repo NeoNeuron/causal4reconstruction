@@ -435,7 +435,7 @@ def hist_causal_blind(pm_causal, hist_range:tuple=None, fit_p0 = None, return_da
         conn_recon = log_cau >= threshold
         recon = np.logical_xor(conn[inf_mask], conn_recon[inf_mask])
         acc += 100-100*recon.sum()/len(recon)
-        ppv += 100*(conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+        ppv += 100*(conn_recon[inf_mask]*conn[inf_mask]).sum()/conn_recon[inf_mask].sum()
 
     # print acc, 
     ax.text(0.6, 0.90, f"acc={acc/4.:.2f}%", fontsize=18, transform=ax.transAxes)
@@ -557,8 +557,8 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
             else:
                 data[key]['conn'] = np.nan
 
-    data_dp = cau.load_from_single(fname, 'Delta_p')
-    data_dp = np.log10(np.abs(data_dp))
+    data_dp_raw = cau.load_from_single(fname, 'Delta_p')
+    data_dp = np.log10(np.abs(data_dp_raw))
     nan_mask = (~np.isinf(data_dp))*(~np.isnan(data_dp))
     counts, bins = np.histogram(data_dp[inf_mask*nan_mask], bins=100, density=True)
     for key in data.keys():
@@ -567,7 +567,7 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
         elif key == 'edges':
             data[key]['dp'] = bins[:-1].copy()
         elif key == 'raw_data':
-            data[key]['dp'] = data_dp.copy()
+            data[key]['dp'] = data_dp_raw.copy()
         else:
             data[key]['dp'] = np.nan
     for key in ('CC', 'MI', 'GC', 'TE'):
@@ -601,7 +601,7 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
             conn_recon = log_cau >= th_km
             error_mask = np.logical_xor(conn, conn_recon)
             data['acc_kmeans'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
-            data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+            data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn_recon[inf_mask].sum()
         except:
             data['kmean_th'][key] = np.nan
             data['acc_kmeans'][key] = np.nan
@@ -627,7 +627,7 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
             conn_recon = log_cau >= threshold
             error_mask = np.logical_xor(conn, conn_recon)
             data['acc_gauss'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
-            data['ppv_gauss'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn[inf_mask].sum()
+            data['ppv_gauss'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn_recon[inf_mask].sum()
             counts_error, _ = np.histogram(log_cau[error_mask*inf_mask], bins=100, range=hist_range,density=True)
             data['hist_error'][key] = counts_error.copy()
         else:
