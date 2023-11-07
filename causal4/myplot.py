@@ -464,7 +464,7 @@ def hist_causal_blind(pm_causal, hist_range:tuple=None, fit_p0 = None, return_da
 
 
 def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
-                           fit_p0 = None, EI_mask=None):
+                            fit_p0 = None, EI_mask=None):
     # ====================
     # Histogram of causal values
     # ====================
@@ -591,7 +591,9 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
 
         # KMeans clustering causal values
         if fit_p0 is None:
-            fit_p0 = [0.5, 0.5, -7, -5, 1, 1]
+            disconn_peak_id = data['hist_disconn'][key].argmax()
+            conn_peak_id = data['hist_conn'][key].argmax()
+            fit_p0 = [0.5, 0.5, bins[disconn_peak_id], bins[conn_peak_id], 1, 1]
         # th_idx = dict(TE=0, GC=1, MI=2, CC=3)
         # th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
         # TODO: Fix inaccurate double peak separation for some cases.

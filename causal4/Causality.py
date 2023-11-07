@@ -343,7 +343,8 @@ class CausalityAPI3(CausalityAPI):
 
 #%% 
 import subprocess as sp
-def run(verbose=False, shuffle=False, **kwargs):
+from pathlib import Path
+def run(verbose=False, shuffle=False, force_regen=False, **kwargs):
     '''
     Run calculation of causal values.
 
@@ -378,13 +379,30 @@ def run(verbose=False, shuffle=False, **kwargs):
         cml_options += '-v '
     if shuffle:
         cml_options += '-s '
-    # Trick: replace comma with space;
-    cml_options_list = [item.replace(',', ' ') if ',' in item else item for item in cml_options.split(' ')]
-    result = sp.run(cml_options_list, capture_output=True, universal_newlines=True)
-    if verbose:
-        [print(line) for line in result.stdout.splitlines()]
-    if result.returncode != 0:
-        print(result.stderr)
+    output_file = kwargs['path_output']
+    if kwargs['Ne']*kwargs['Ni'] > 0:
+        output_file += f"EI/N={kwargs['Ne']+kwargs['Ni']:d}/"
+    elif kwargs['Ne'] > 0:
+        output_file += f"EE/N={kwargs['Ne']:d}/"
+    elif kwargs['Ni'] > 0:
+        output_file += f"II/N={kwargs['Ni']:d}/"
+    else:
+        raise ValueError('No neuron!')
+    output_file += f"TGIC2.0-K={kwargs['order'][0]:d}_{kwargs['order'][1]:d}" \
+                + f"bin={kwargs['bin']:.2f}" \
+                + f"delay={kwargs['delay']:.2f}" \
+                + f"T={kwargs['T']:.2e}" \
+                + f"-{kwargs['fname']:s}.dat"
+    if force_regen or not Path(output_file).exists():
+        # Trick: replace comma with space;
+        cml_options_list = [item.replace(',', ' ') if ',' in item else item for item in cml_options.split(' ')]
+        result = sp.run(cml_options_list, capture_output=True, universal_newlines=True)
+        if verbose:
+            [print(line) for line in result.stdout.splitlines()]
+        if result.returncode != 0:
+            print(result.stderr)
+    else:
+        print(f'File {output_file:s} exists.')
 # %%
 # from multiprocessing import Pool
 from ray.util.multiprocessing import Pool
