@@ -399,6 +399,11 @@ void Initialization(std::mt19937 &rng_conn, std::mt19937 &rng_dym)
 		PNseed = rand()*TrialID;
 	}
 
+	if (CP > 1e-6) {
+		Nu_common = Nu * CP;
+		Nu = Nu * (1 - CP);
+	}
+
 	if (fi_neu_state != NULL && fi_neu_state[0] != '\0') {
 		FILE* fp_buff = fopen(fi_neu_state, "rb"); 
 		if(fp_buff == NULL) {
@@ -453,14 +458,23 @@ void Initialization(std::mt19937 &rng_conn, std::mt19937 &rng_dym)
 			neu[i].state = 1;
 		}
 	}
+	if (CP > 1e-6) {
+		neu_common.t = 0;
+		neu_common.Nu = Nu_common;
+		neu_common.Poisson_input_time = new double[int(T_step * 100 * 2) + 5];
+		// neu[i].Poisson_input_time[0] = 0;   // Uncomment for EPSP calibration
+		for (int j = 0; j < 500; j++)	// Comment for EPSP calibration
+			Random(PNseed);				// Comment for EPSP calibration
+		neu_common.seed = PNseed;
+		neu_common.Poisson_input_num = -1;
+		// neu[i].Poisson_input_num = 1;    // Uncomment for EPSP calibration
+	}
 	if (full_toggle) {
 		Assign_CS();
 	} else {
 		Create_connect_matrix(rng_conn);
 	}
 	Record_connect_matrix();
-
-
 }
 
 void SaveNeuronState() {

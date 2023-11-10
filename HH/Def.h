@@ -115,3 +115,5 @@ double exp_call = 0; ///
 
 long SD = 99587846825;
 double CP = 0;  // correlated Poisson input
+double Nu_common;     // Common feedforward Poisson rate 
+struct neuron neu_common; // Pseudo neuron for common Poisson inputs

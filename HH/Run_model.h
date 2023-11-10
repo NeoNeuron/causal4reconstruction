@@ -272,27 +272,24 @@ void Record_Power_spectrum(double t)
 
 void Update_Conductance(double t,struct neuron *a)
 {
-	for (int i = 0; i < N; i++)  // update G_f G_ff
-		for (int j = 0; j < neu[i].Poisson_input_num; j++)
-		{
+	for (int i = 0; i < N; i++) { // update G_f G_ff
+		// inject individual Poisson
+		for (int j = 0; j < neu[i].Poisson_input_num; j++) {
 			//neu[i].Poisson_input_time[j] = t;
 			double dt = t - neu[i].Poisson_input_time[j]; 
 			a[i].G_ff += f[i] * (1 - dt / Sigma_d_E);
-			a[i].G_f += f[i] * dt;
-
-			if (CP > 1e-6)
-			{
-				if (i == 0 && Random(SD) <= CP) // common input
-				{
-					for (int k = 1; k < N; k++)
-					{
-						a[k].G_ff += f[i] * (1 - dt / Sigma_d_E);
-						a[k].G_f += f[i] * dt;
-					}
-				}
-			}
+			a[i].G_f  += f[i] * dt;
 		}
 
+		// inject common Poisson
+		if (CP > 1e-6) {
+			for (int j = 0; j < neu_common.Poisson_input_num; j++) {
+				double dt = t - neu_common.Poisson_input_time[j]; 
+				a[i].G_ff += f[i] * (1 - dt / Sigma_d_E);
+				a[i].G_f  += f[i] * dt;
+			}
+		}
+	}
 	for (int k = 0; k < N; k++)
 	{
 		if (a[k].if_fired)
@@ -345,6 +342,8 @@ void Run_model()
 		if (Nu > Epsilon)
 			for (int i = 0; i < N; i++)
 				Generate_Poisson_times(neu[i], t, T_step);
+			if (CP > 1e-6)
+				Generate_Poisson_times(neu_common, t, T_step);
 
 
 		for (int i = 0; i < N; i++)
