@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from matplotlib.ticker import LogLocator, NullFormatter
+from matplotlib.ticker import LogLocator, NullFormatter, FuncFormatter
+@FuncFormatter
+def sci_formatter(x, pos):
+    return r'$10^{%d}$'%x
 from scipy.io import loadmat
 import networkx as nx
 plt.rcParams['xtick.labelsize'] = 18
