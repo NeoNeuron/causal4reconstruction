@@ -708,8 +708,12 @@ def ReconstructionFigure(
                 ax_hist.plot(edges, Gaussian(edges, popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
 
     # print acc, ppv
-    acc_mean = np.nanmean(list(data[acc_key].values()))
-    ppv_mean = np.nanmean(list(data[ppv_key].values()))
+    if isinstance(data, dict):  # data as dict of dict
+        acc_mean = np.nanmean(list(data[acc_key].values()))
+        ppv_mean = np.nanmean(list(data[ppv_key].values()))
+    else:   # data as pandas dataframe
+        acc_mean = np.nanmean(data[acc_key].values)
+        ppv_mean = np.nanmean(data[ppv_key].values)
     texts = []
     texts.append(ax.text(0.15, 0.90, f"acc={acc_mean*100:.2f}%", fontsize=18, transform=ax.transAxes))
     texts.append(ax.text(0.15, 0.83, f"ppv={ppv_mean*100:.2f}%", fontsize=18, transform=ax.transAxes))
@@ -742,17 +746,15 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
                 + f"_{pm_causal['fname']:s}.pdf", transparent=True)
     return fig_data
 
-def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax=None, **kwargs):
+def load_spike_data(pm_causal:dict, xrange:tuple=(0,1000), verbose=True, **kwargs):
     """plot sample raster plot given network parameters
 
     Args:
         pm_causal (dict): paramter dictionary
         xrange (tuple, optional): range of xaxis. Defaults to (0,1000).
-        return_spk (bool, optional): return spike data. Defaults to False.
-        ax (optional): matplotlib axis. Defaults to None.
 
     Returns:
-        matplotlib.Figure: figure containing raster plot
+        spike_data: np.ndarray, (num_spikes, 2)
     """
     N = int(pm_causal['Ne']+pm_causal['Ni'])
     if pm_causal['Ne'] * pm_causal['Ni'] > 0:
@@ -777,18 +779,35 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
                 break
             spk_data_more = np.array(struct.unpack('d'*2*data_len, data_buff)).reshape(-1,2)
             spk_data = np.concatenate((spk_data, spk_data_more), axis=0)
+
+    mask = (spk_data[:,0] > xrange[0]) * (spk_data[:,0] < xrange[1])
+    if verbose:
+        print(f"mean firing rate is {spk_data.shape[0]/spk_data[-1,0]/N*1000.:.3f} Hz")
+    return spk_data[mask, :]
+
+def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax=None, **kwargs):
+    """plot sample raster plot given network parameters
+
+    Args:
+        pm_causal (dict): paramter dictionary
+        xrange (tuple, optional): range of xaxis. Defaults to (0,1000).
+        return_spk (bool, optional): return spike data. Defaults to False.
+        ax (optional): matplotlib axis. Defaults to None.
+
+    Returns:
+        matplotlib.Figure: figure containing raster plot
+    """
+    spk_data = load_spike_data(pm_causal, xrange)
     if ax is None:
         fig, ax = plt.subplots(1,1,figsize=(12,3))
     else:
         fig = ax.get_figure()
-    mask = (spk_data[:,0] > xrange[0]) * (spk_data[:,0] < xrange[1])
-    ax.plot(spk_data[mask, 0], spk_data[mask, 1], '|', **kwargs)
+    ax.plot(spk_data[:, 0], spk_data[:, 1], '|', **kwargs)
     ax.set_xlim(*xrange)
     ax.set_xlabel('Time (ms)')
-    print(f"mean firing rate is {spk_data.shape[0]/spk_data[-1,0]/N*1000.:.3f} Hz")
+    ax.set_ylabel('Neuronal Indices')
     plt.tight_layout()
-    prefix = spk_fname.split('/')[-1].replace('_spike_train.dat', '')
-    fig.savefig('image/'+f'raster_{prefix:s}.pdf')
+    fig.savefig('image/'+f"raster_{pm_causal['fname']:s}.pdf")
     if return_spk:
         return fig, spk_data
     else:

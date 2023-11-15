@@ -2,7 +2,7 @@ HH100:
     Ne: 100
     Ni: 0
     T: 1.0e+7
-    DT: 20000.0
+    DT: 2.0e+4
     auto_T_max: 0
     bin: 0.5
     order: !!python/tuple
@@ -76,7 +76,7 @@ HH100-LN:
 HH100-LN-Song2005:
     Ne: 100
     Ni: 0
-    T: 1.0e+8
+    T: 1.0e+7
     DT: 2.0e+4
     auto_T_max: 0
     bin: 0.5
@@ -84,7 +84,7 @@ HH100-LN-Song2005:
     - 1
     - 1
     delay: 3
-    fname: HHLN-p=0.25s=0.020f=0.100u=0.100ra=0.00
-    con_mat: connect_matrix-p=0.250-LN.dat
+    fname: HHLN-p=0.25s=0.020f=0.100u=0.100Song2005
+    con_mat: connect_matrix-p=0.250-LNSong2005.dat
     path_input: ./HH/data/
     path_output: ./HH/data/
