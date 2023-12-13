@@ -402,7 +402,8 @@ def run(verbose=False, shuffle=False, force_regen=False, **kwargs):
         if result.returncode != 0:
             print(result.stderr)
     else:
-        print(f'File {output_file:s} exists.')
+        if verbose:
+            print(f'File {output_file:s} exists.')
 # %%
 # from multiprocessing import Pool
 from ray.util.multiprocessing import Pool
