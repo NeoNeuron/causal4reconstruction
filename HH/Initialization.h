@@ -113,29 +113,29 @@ void Create_connect_matrix(std::mt19937 &rng) {
 		}
 	}
 
-	if (N == 100 && P_c == 0.7)   //ring structural
-	{
-		for (int i = 0; i < N; i++)
-			for (int j = 0; j < N; j++)
-			{
-				Connect_Matrix[i][j] = 0;
-				CS[i][j] = 0;
-			}
-		for (int i = 0; i < N; i++)
-		{
-			for (int j = 1; j <= 10; j++) /// connected to 20 neurons
-			{
-				int id0 = (i + j) % N;
-				int id1 = (i - j + N) % N;
-				Connect_Matrix[i][id0] = 1;
-				CS[i][id0] = Decide_S(i, id0, rng);
+	// if (N == 100 && P_c == 0.7)   //ring structural
+	// {
+	// 	for (int i = 0; i < N; i++)
+	// 		for (int j = 0; j < N; j++)
+	// 		{
+	// 			Connect_Matrix[i][j] = 0;
+	// 			CS[i][j] = 0;
+	// 		}
+	// 	for (int i = 0; i < N; i++)
+	// 	{
+	// 		for (int j = 1; j <= 10; j++) /// connected to 20 neurons
+	// 		{
+	// 			int id0 = (i + j) % N;
+	// 			int id1 = (i - j + N) % N;
+	// 			Connect_Matrix[i][id0] = 1;
+	// 			CS[i][id0] = Decide_S(i, id0, rng);
 
-				Connect_Matrix[i][id1] = 1;
-				CS[i][id1] = Decide_S(i, id0, rng);
-			}
-		}
+	// 			Connect_Matrix[i][id1] = 1;
+	// 			CS[i][id1] = Decide_S(i, id0, rng);
+	// 		}
+	// 	}
 
-	}
+	// }
 }
 
 void Assign_CS()
