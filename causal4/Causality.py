@@ -5,6 +5,46 @@
 import numpy as np
 import os
 
+def get_fname_new(dtype:str, folder:str, order:tuple, bin:float, delay:float, 
+                  spk_fname:str, T:float=None, p:float=None, s:float=None, 
+                  f:float=None, u:float=None, **kwargs)->str:
+    """Generate filename of causal values.
+
+    Args:
+        dtype (str): type of dynamical systems.
+        folder (str): folder of data files.
+        order (tuple): conditional order in causal measures, (k, l)
+        bin (float): bin size for binarization of spike trains
+        delay (float): delay length, m.
+        spk_fname (str): filename of spike trains.
+        T (float): time duration of recorded data.
+        p (float, optional): wiring probability of network. Defaults to None.
+        s (float, optional): coupling strength. Defaults to None.
+        f (float, optional): FFWD Poisson strength. Defaults to None.
+        u (float, optional): FFWD Poisson frequency. Defaults to None.
+
+    Returns:
+        : str of filename
+    """
+
+    prefix = f"TGIC2.0-K={order[0]:d}_{order[1]:d}" \
+        + f"bin={bin:.2f}delay={delay:.2f}"
+    if T is not None:
+        prefix += f"T={T:.2e}"
+    prefix += "-"
+    if spk_fname is not None:
+        spk_name_new = spk_fname[:-4] if spk_fname.endswith('.dat') else spk_fname
+    else:
+        if dtype == 'Lorenz':
+            dtype='L'
+        elif dtype == 'Logistic':
+            dtype='Log'
+        if s < 1e-3 and s>0:
+            spk_name_new = f"{dtype:s}p={p:.2f}s={s:.5f}f={f:.3f}u={u:.3f}"
+        else:
+            spk_name_new = f"{dtype:s}p={p:.2f}s={s:.3f}f={f:.3f}u={u:.3f}"
+    return folder + prefix + f"{spk_name_new:s}.dat"
+
 def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float, 
               spk_fname:str, T:float=None, p:float=None, s:float=None, 
               f:float=None, u:float=None, **kwargs)->str:
@@ -197,6 +237,66 @@ class CausalityIO(object):
             else:
                 return dat[:, self.causal_map[causal_type]].reshape(self.N, self.N)
 
+class CausalityLoader(CausalityIO):
+    """ ! Original data structure
+        dat[0]  : TE value
+        dat[1]  :	x index 
+        dat[2]  :	y index 
+        p = p(x_{n+1}, x-, y-)
+        dat[3]  : p(x_{n+1}=1)
+        dat[4]  : p(y_{n}=1)
+        dat[5]  : p0 = p(0,0,0) + p(1,0,0)
+        dat[6]  : dpl(or more) = p(x=1|x-, y-_l = 1) - p(x=1|x-, y-_l = 0)
+        dat[7]  : \Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
+        dat[7+order]  : TE(l=5)
+        dat[8+order]  : GC
+        dat[9+order] : \sum{TDMI}
+        dat[10+order] : \sum{NCC^2}
+        dat[11+order] : approx for 2*\sum{TDMI}
+        y-->x.  Total N*N*(k+12).
+    """
+
+    def __init__(self, dtype, N=2, order=(1,1), bin=0.5, delay=0, 
+                 T=None, **kwargs) -> None:
+
+        self.dtype=dtype
+        if isinstance(N, tuple):
+            assert len(N) == 2
+            self.N = N[0]+N[1]
+        else:
+            self.N=N
+        
+        self.folder = kwargs['path_output'] if 'path_output' in kwargs else 'data/'
+        self.T = T
+        self._order=order
+        self.bin=bin
+        self.delay=delay
+        self.causal_map = dict(
+            TE = 0, 
+            GC = self.order[1]+8, 
+            MI = self.order[1]+9, 
+            CC = self.order[1]+10,
+            dp = 6,
+            Delta_p = self.order[1]+6,
+            px = 3,
+            py = 4,
+        )
+
+    def get_fname(self, spk_fname:str, **kwargs):
+        pm_buff = dict(
+            dtype=self.dtype, 
+            folder=self.folder, 
+            T=self.T,
+            order=self.order,
+            bin=self.bin,
+            delay=self.delay,
+            # properties about the name of spike train data file, 
+            #  which will be overrided if spk_fname is not None.
+        )
+        for key in kwargs:
+            if key in pm_buff:
+                pm_buff[key] = kwargs[key]
+        return get_fname_new(spk_fname=spk_fname, **pm_buff)
 
 class CausalityAPI(CausalityIO):
     """

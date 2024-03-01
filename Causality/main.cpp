@@ -119,20 +119,10 @@ int main(int argc, char **argv)
 	strcpy(path_input,    vm["path_input"].as<string>().c_str());
 	strcpy(path_output,  vm["path_output"].as<string>().c_str());
 
-	if (N == NE) {
-		strcat(path_input,  "EE/N=");
-		strcat(path_output, "EE/N=");
-	} else if (N == NI) {
-		strcat(path_input,  "II/N=");
-		strcat(path_output, "II/N=");
-	} else {
-		strcat(path_input,  "EI/N=");
-		strcat(path_output, "EI/N=");
-	}
-
+	// naming output folder 
+	strcat(path_input, "/");
     char ch[100];
-	sprintf(ch, "%d", N), strcat(path_input, ch), strcat(path_input, "/");
-	sprintf(ch, "%d", N), strcat(path_output, ch), strcat(path_output, "/");
+	strcat(path_output, "/");
 
     // Output_filename();
 	k = order[1];
