@@ -4,6 +4,28 @@
 # %%
 import numpy as np
 import os
+import pandas as pd
+from . import c_program
+from tqdm import tqdm
+
+class CausalityFileName(str):
+    """
+        Typical example: TGIC2.0-K=1_1bin=0.50delay=0.00T=6.35e+03-minnie65_v661.dat
+    """
+    def __new__(cls, value):
+        inst = super().__new__(cls, value)
+        items = value.split('-')[1:]
+        for key in ['K', 'bin', 'delay', 'T']:
+            items[0] = items[0].replace(key, '')
+        items[0] = items[0].split('=')
+        inst.__dict__.update({
+            'order': tuple([int(ii) for ii in items[0][1].split('_')]),
+            'dt':    float(items[0][2]),
+            'delay': float(items[0][3]),
+            'T':     float(items[0][4]),
+            'fname': items[1].split('.')[0],
+        })
+        return inst
 
 def get_fname_new(dtype:str, folder:str, order:tuple, bin:float, delay:float, 
                   spk_fname:str, T:float=None, p:float=None, s:float=None, 
@@ -88,6 +110,164 @@ def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float,
             spk_name_new = f"{dtype:s}p={p:.2f}s={s:.3f}f={f:.3f}u={u:.3f}"
     return DIRPATH + prefix + f"{spk_name_new:s}.dat"
 
+class CausalityEstimator(object):
+    """ #! Original data structure
+        dat[0]  : TE value
+        dat[1]  : pre-synaptic neuron (y) index 
+        dat[2]  : post-synaptic neuron (x) index 
+        #! Note : in following notation: p( , , ) = p(x_{n+1}, x-, y-)
+        dat[3]  : p(x_{n+1}=1)
+        dat[4]  : p(y_{n}=1)
+        dat[5]  : p0 = p(0,0,0) + p(1,0,0)
+        dat[6]  : dpl(or more) = p(x=1|x-, y-_l = 1) - p(x=1|x-, y-_l = 0)
+        dat[7]  : \Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
+        dat[7+order]  : TE(l=5)
+        dat[8+order]  : GC
+        dat[9+order] : \sum{TDMI}
+        dat[10+order] : \sum{NCC^2}
+        dat[11+order] : approx for 2*\sum{TDMI}
+        y-->x.  Total N*N*(k+12).
+    """
+    def __init__(self, path:str, spk_fname:str, N:int,
+                 order=(1,1), dt=0.5, delay=None, T=None, **kwargs) -> None:
+        self.path = path    # folder path of spk_data file
+        self.spk_fname = spk_fname  # fname of spk_data file
+        self.N=N
+        self.T = T
+        self._order=order
+        self.dt=dt
+        self.delay=delay
+        self.index_map = dict(
+            TE = 0, 
+            GC = self.order[1]+8, 
+            MI = self.order[1]+9, 
+            CC = self.order[1]+10,
+            dp = 6,
+            Delta_p = self.order[1]+6,
+            px = 3,
+            py = 4,
+        )
+        self.DT = kwargs['DT'] if 'DT' in kwargs else 1e3
+        self.n_thread = kwargs['n_thread'] if 'n_thread' in kwargs else 10
+
+    @property
+    def order(self):
+        return self._order
+    
+    @order.setter
+    def order(self, order):
+        self._order = order
+        self.index_map['GC'] = order[1]+8
+        self.index_map['MI'] = order[1]+9
+        self.index_map['CC'] = order[1]+10
+    
+    def get_optimal_delay(self, delay_range:list) -> int:
+        dfs = []
+        print('>> start searching the optimal delay ...')
+        for delay in tqdm(delay_range):
+            self._run_estimation(delay, regen=False, verbose=False)
+            df = self.fetch_data(delay, new_run=True)
+            # using sum(MI) as the estimation standards
+            dfs.append(df['sum(MI)'].to_list())
+        dfs = np.asarray(dfs)   # shape (len(delay_range), Num_paris)
+        self.delay = delay_range[np.argmax(dfs.mean(1))]
+        return self.delay
+
+    def _check_exist(self, delay:float=None):
+        if delay is None:
+            delay = self.delay
+        causal_fname = self.path + '/'
+        causal_fname += f"TGIC2.0-K={self.order[0]:d}_{self.order[1]:d}" \
+                        + f"bin={self.dt:.2f}delay={delay:.2f}" \
+                        + f"T={self.T:.2e}-{self.spk_fname:s}.dat"
+        if os.path.exists(causal_fname):
+            return causal_fname
+        else:
+            return False
+
+    def _run_estimation(self, delay:float=None, regen:bool=False, verbose:bool=False):
+        """ Run the estimation process.
+
+        Args:
+            delay (float, optional): The delay parameter. If not provided, the self.delay value will be used.
+            regen (bool, optional): Whether to regenerate the output files. Defaults to False.
+            verbose (bool, optional): Whether to print verbose output. Defaults to False.
+
+        Returns:
+            str: The output filename of causality data.
+        """
+        if delay is None:
+            delay = self.delay
+        pm = dict(
+            N = self.N,
+            order = self.order,
+            T = self.T if self.T is not None else 0,
+            DT = self.DT,
+            dt = self.dt,
+            delay = delay,
+            path_input = self.path,
+            path_output = self.path,
+            fname = self.spk_fname,
+            n_thread = self.n_thread,
+        )
+        if self.T is None:
+            pm['auto_Tmax'] = 1 
+            output_fname = run(verbose=verbose, force_regen=regen, **pm)
+            self.T = CausalityFileName(output_fname).T
+            return output_fname
+        else:
+            return run(verbose=verbose, force_regen=regen, **pm)
+
+    def fetch_data(self, delay:float=None, new_run:bool=False):
+        """ Fetches the causality data from a file.
+
+        Args:
+            delay (float, optional): The delay parameter. If not specified, the optimal delay will be used.
+            new_run (bool, optional): Flag indicating whether to run new estimation if causality file not exist.
+                                      Defaults to False.
+
+        Returns:
+            DataFrame: A pandas DataFrame containing the fetched causality data.
+
+        Raises:
+            FileNotFoundError: If the causality file does not exist.
+
+        """
+        # if (shuffle_flag)
+            # strcat(str, "_shuffle");
+        # check the delay parameter
+        if delay is None:
+            if self.delay is None:
+                print("INFO: delay is not specified. " +
+                      "Use CausalityEstimator.get_optimal_delay to " +
+                      "search the optimal delay.")
+                print("INFO: default searching range: np.arange(0, 11*self.dt, dt).")
+                self.get_optimal_delay(np.arange(11)*self.dt)
+            delay = self.delay
+        # check existence of causality data file
+        fname = self._check_exist(delay)
+        
+        if fname:
+            data = np.fromfile(fname, dtype=np.float64)
+            if data.shape[0] % (self.order[1]+12) != 0:
+                data = data[:-9].reshape((-1, self.order[1]+12))
+                print(f"this is an out-of-dated datafile, containing accuracy and threshold, won't be loaded.")
+            else:
+                data = data.reshape((-1, self.order[1]+12))
+            
+            columns = ['TE', 'pre_id', 'post_id', 'px', 'py', 'p0'] + \
+                      [f'dp{i}' for i in range(1, self.order[1]+1)] + \
+                      ['Delta_p', 'TE(l=5)', 'GC', 'sum(MI)', 'sum(CC2)', '2sum(MI)']
+            df = pd.DataFrame(data, columns=columns)
+            df = df.astype({'pre_id':int, 'post_id':int})
+            return df
+        else:
+            if new_run:
+                print("Initialize new run ...")
+                self._run_estimation(delay, verbose=True)
+                return self.fetch_data(delay, new_run=False)
+            else:
+                raise FileNotFoundError("Causality file does not exist.")
 
 class CausalityIO(object):
     """ ! Original data structure
@@ -444,66 +624,61 @@ class CausalityAPI3(CausalityAPI):
 #%% 
 import subprocess as sp
 from pathlib import Path
-def run(verbose=False, shuffle=False, force_regen=False, **kwargs):
+def run(verbose=False, shuffle=False, force_regen=False, **kwargs) -> str:
     '''
-    Run calculation of causal values.
+    Run estimation of causal values.
 
     Parameters
     ----------
 
     '''
     flag_map = dict(
+        cfg_file = "-c %s",
         fname = "-f %s",
-        Ne = "--NE %d",
-        Ni = "--NI %d",
+        N = "-N %d",
         order = '--order %d,%d', # Trick: use comma to separate two order numbers;
-        T = "--T_Max %f",
+        T = "--Tmax %f",
         DT = "--DT %f",
-        auto_T_max = "--auto_T_max %d",
-        bin = "--bin %f",
-        delay = "--sample_delay %f",
-        con_mat = "--matrix_name %s",
+        auto_Tmax = "--auto_Tmax",
+        dt = "--dt %f",
+        delay = "--delay %f",
         path_input = "--path_input %s",
         path_output = "--path_output %s",
         mask_file = "--mask_file %s",
         n_thread = "-j %d",
     )
-    cml_options = './bin/calCausality -c ./Causality/NetCau_parameters.ini '
+    cml_options = str(c_program)
     for key in kwargs:
         if key in flag_map:
-            cml_options += flag_map[key]%kwargs[key] + ' '
+            if '%' in flag_map[key]:
+                cml_options += ' ' + flag_map[key]%kwargs[key]
+            else:
+                cml_options += ' ' + flag_map[key]
     # for section in self.config.sections():
     #     for option in list(self.config[section]):
     #         cml_options += '--'+section+'.'+option + ' ' + (self.config[section][option]) + ' '
-    if verbose:
-        cml_options += '-v '
+    cml_options += ' -v'
     if shuffle:
-        cml_options += '-s '
-    output_file = kwargs['path_output']
-    if kwargs['Ne']*kwargs['Ni'] > 0:
-        output_file += f"EI/N={kwargs['Ne']+kwargs['Ni']:d}/"
-    elif kwargs['Ne'] > 0:
-        output_file += f"EE/N={kwargs['Ne']:d}/"
-    elif kwargs['Ni'] > 0:
-        output_file += f"II/N={kwargs['Ni']:d}/"
-    else:
-        raise ValueError('No neuron!')
+        cml_options += ' -s'
+    output_file = kwargs['path_output'] + '/'
     output_file += f"TGIC2.0-K={kwargs['order'][0]:d}_{kwargs['order'][1]:d}" \
-                + f"bin={kwargs['bin']:.2f}" \
-                + f"delay={kwargs['delay']:.2f}" \
-                + f"T={kwargs['T']:.2e}" \
-                + f"-{kwargs['fname']:s}.dat"
+                   + f"bin={kwargs['dt']:.2f}delay={kwargs['delay']:.2f}" \
+                   + f"T={kwargs['T']:.2e}-{kwargs['fname']:s}.dat"
     if force_regen or not Path(output_file).exists():
-        # Trick: replace comma with space;
+        #* Trick: replace comma with space
         cml_options_list = [item.replace(',', ' ') if ',' in item else item for item in cml_options.split(' ')]
         result = sp.run(cml_options_list, capture_output=True, universal_newlines=True)
-        if verbose:
-            [print(line) for line in result.stdout.splitlines()]
+        for line in result.stdout.splitlines():
+            if verbose:
+                print('>>', line)
+            if 'save to file' in line:
+                output_file = line.split(':')[-1]
         if result.returncode != 0:
             print(result.stderr)
     else:
         if verbose:
             print(f'File {output_file:s} exists.')
+    return output_file
 # %%
 # from multiprocessing import Pool
 from ray.util.multiprocessing import Pool

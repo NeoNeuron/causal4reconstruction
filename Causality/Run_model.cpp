@@ -27,7 +27,7 @@ void Print(vector<double>& a, char str[], int count_in_line)
 	}
 }
 
-double Find_T_Max(FILE *fp, bool verbose)
+double Find_Tmax(FILE *fp, bool verbose)
 {
 	double s[2];
 	while (!feof(fp))
@@ -40,7 +40,7 @@ double Find_T_Max(FILE *fp, bool verbose)
 
 // read data in [t0, t1)
 void read_data(
-	FILE *fp, double t0, double t1, double bin, 
+	FILE *fp, double t0, double t1, double dt, 
 	vector<vector<unsigned short int> >& X, int N)
 {
 	double s[2];
@@ -53,7 +53,7 @@ void read_data(
 		if (s[0] >= t0 && s[0] < t1 && s[1] < N)
 		{
 			node_id = int(s[1]);
-			time_id = int((s[0] - t0) / bin);
+			time_id = int((s[0] - t0) / dt);
 			X[node_id][time_id] = 1;
 		}
 		if (s[0] >= t1)

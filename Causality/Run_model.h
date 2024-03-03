@@ -5,12 +5,12 @@ using namespace std;
 
 void Print(vector<double>& a, char str[], int count_in_line);
 
-double Find_T_Max(FILE *fp, bool verbose);
+double Find_Tmax(FILE *fp, bool verbose);
 
 // read data in [t0, t1)
 void read_data(
     FILE *fp, double t0, double t1, 
-    double bin, vector<vector<unsigned short int> >& X, int N);
+    double dt, vector<vector<unsigned short int> >& X, int N);
 
 // y-->x  XX-Y- 101
 void compute_p(
