@@ -644,183 +644,184 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
     return pd.DataFrame(data)
 
 
-
-
-def _ReconstructionAnalysis_new(pm_causal, hist_range:tuple=None,
-                            fit_p0 = None, EI_mask=None, nbins=100):
-    # ====================
-    # Histogram of causal values
-    # ====================
-    N = int(pm_causal['Ne']), int(pm_causal['Ni'])
-    fname = pm_causal['fname']
-    cau = CausalityLoader(dtype=pm_causal['path_input'].split('/')[1], N=N, **pm_causal)
-    fig_data_keys = ['raw_data', 'roc_gt', 'roc_blind', 
+def _ReconstructionAnalysis_new(
+        data:pd.DataFrame, N:int, conn_file:str,
+        Ni:int=None, hist_range:tuple=None, nbins=100, fit_p0 = None, 
+        mask_file:str=None, EI_mask:str=None,):
+    N = N if Ni is None else N+Ni
+    fig_data_keys = ['roc_gt', 'roc_blind', 
         'hist', 'hist_conn', 'hist_disconn', 'hist_error', 'edges', 
         'log_norm_fit_pval', 'opt_th', 'kmean_th', 
         'acc_gauss', 'acc_kmeans', 'ppv_gauss', 'ppv_kmeans',
         'auc_gauss', 'auc_kmeans',
     ]
-    data = {key: {} for key in fig_data_keys}
-
-    N = N[0]+N[1]
-    # load causal data to determine the shape of mask
-    data_buff = cau.load_from_single(fname, 'TE')
-    if len(data_buff.shape) == 1:
-        inf_mask = ~np.isinf(data_buff)
-    elif len(data_buff.shape) == 2:
-        inf_mask = ~np.eye(N, dtype=bool)
-        if EI_mask == 'E':
-            inf_mask[int(pm_causal['Ne']):, :]=False
-        elif EI_mask == 'I':
-            inf_mask[:int(pm_causal['Ne']), :]=False
-    else:
-        raise ValueError('data shape error!')
-
-    if hist_range is None:
-        # determine histogram value range
-        if np.any(data_buff[inf_mask]<=0):
-            print('WARNING: some negative entities occurs!')
-            inf_mask[data_buff<=0] = False
-        data_buff = np.log10(data_buff[inf_mask])
-        hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
+    data_fig = {key: {} for key in fig_data_keys}
+    data_recon = data.copy()
+    
+    # Transform causality column in data to log10-scale
+    new_columns_map = {
+        'log-TE': 'TE',
+        'log-GC': 'GC',
+        'log-MI': 'sum(MI)',
+        'log-CC': 'sum(CC2)',
+        'log-dp': 'Delta_p',
+    }
+    for key, val in new_columns_map.items():
+        data_recon[key] = np.log10(np.abs(data_recon[val]))
+        if key in ('log-TE', 'log-MI'):
+            data_recon[key] += np.log10(2)
 
     # load connectivity matrix 
-    fname_conn = pm_causal['path_output'] + pm_causal['con_mat']
-    conn_raw = np.fromfile(fname_conn, dtype=float)
+    conn_raw = np.fromfile(conn_file, dtype=float)
+    conn_weight = None
     if conn_raw.shape[0] >= N*N:
         print('>> Load dense matrix:')
         conn = conn_raw[:int(N*N)].reshape(N,N).astype(bool)
+        pre_id, post_id = np.where(conn)
+
         if conn_raw.shape[0] > N*N:
-            conn_weight = conn_raw[int(N*N):].reshape(N,N)
-        else:
-            conn_weight = None
+            conn_weight = conn_raw[int(N*N):].astype(float)
     else:
         print('>> Load sparse matrix:')
         conn_raw = conn_raw.reshape(2,-1)
-        conn = np.zeros((N,N), dtype=bool)
-        conn[conn_raw[0].astype(int), conn_raw[1].astype(int)] = True
-        conn_weight = None
+        pre_id, post_id = conn_raw
 
-    if 'mask_file' in pm_causal:
-        mask = np.fromfile(pm_causal['path_output']+pm_causal['mask_file'], dtype=float).reshape(2,-1)
-        mask = mask.astype(int)
-        conn = conn[mask[0], mask[1]]
+    if mask_file is not None:
+        mask = np.fromfile(mask_file, dtype=float).reshape(2,-1)
+        mask_pre_id, mask_post_id = mask.astype(int)
+        mask = pd.DataFrame({'pre_id':mask_pre_id, 'post_id':mask_post_id}).astype(int)
+        # Select rows in data according to mask
+        data_recon = data_recon.merge(mask, how='inner', on=['pre_id', 'post_id'])
 
-    ratio = np.sum(conn[inf_mask])/np.sum(inf_mask)
-    # plot the distribution of connectivity weight if exist
+    if EI_mask is not None:
+        if EI_mask == 'E':
+            data_recon = data_recon[data_recon['pre_id'] < N-Ni]
+        elif EI_mask == 'I':
+            data_recon = data_recon[data_recon['pre_id'] >= N-Ni]
+        else:
+            raise ValueError('EI_mask error!')
+
+    # Create a DataFrame from dd
+    conn_pairs = pd.DataFrame(
+        {'pre_id':pre_id, 'post_id':post_id, 'connection':np.ones_like(pre_id, dtype=int)})
+    # Merge conn_pairs with data
+    data_recon = data_recon.merge(conn_pairs, how='left', on=['pre_id', 'post_id'])
+    # Fill missing rows in 'connection' column with 0
+    data_recon['connection'].fillna(0, inplace=True)
+
+    # merge connection strength if exist
     if conn_weight is not None:
-        zero_mask = conn_weight>0
-        if 'LN' in fname_conn:
+        weight_pairs = pd.DataFrame(
+            {'pre_id':pre_id, 'post_id':post_id, 'weight':weight_pairs})
+        data_recon = data_recon.merge(conn_pairs, how='left', on=['pre_id', 'post_id'])
+        data_recon['weight'].fillna(0, inplace=True)
+
+        if 'LN' in conn_file:
             counts, bins = np.histogram(
-                np.log10(conn_weight[inf_mask*zero_mask]), bins=40)
+                np.log10(data_recon[data_recon['connection'].eq(1)]), bins=40)
         else:
             counts, bins = np.histogram(
-                conn_weight[inf_mask*zero_mask], bins=40)
-        for key in data.keys():
+                data_recon[data_recon['connection'].eq(1)], bins=40)
+        for key in data_fig.keys():
             if key == 'hist':
                 data[key]['conn']  = counts.copy()
             elif key == 'edges':
                 data[key]['conn'] = bins[:-1].copy()
-            elif key == 'raw_data':
-                data[key]['conn'] = conn_weight.copy()
-            else:
-                data[key]['conn'] = np.nan
-    else:
-        for key in data.keys():
-            if key == 'raw_data':
-                data[key]['conn'] = conn.astype(float)
             else:
                 data[key]['conn'] = np.nan
 
-    data_dp_raw = cau.load_from_single(fname, 'Delta_p')
-    data_dp = np.log10(np.abs(data_dp_raw))
-    nan_mask = (~np.isinf(data_dp))*(~np.isnan(data_dp))
-    counts, bins = np.histogram(data_dp[inf_mask*nan_mask], bins=100, density=True)
-    for key in data.keys():
+    # drop inf and nan rows, mainly self-connections
+    data_recon.replace([np.inf, -np.inf], np.nan, inplace=True)
+    data_recon.dropna(inplace=True)
+    ratio = data_recon['connection'].mean()
+
+    if hist_range is None:
+        # determine histogram value range
+        hist_range = (np.floor(data_recon[['log-TE', 'log-GC', 'log-MI', 'log-CC']].min().min()),
+                      np.ceil(data_recon[['log-TE', 'log-GC', 'log-MI', 'log-CC']].max()).max())
+
+    counts, bins = np.histogram(data_recon['log-dp'], bins=100, density=True)
+    for key in data_fig.keys():
         if key == 'hist':
-            data[key]['dp']  = counts.copy()
+            data_fig[key]['dp']  = counts.copy()
         elif key == 'edges':
-            data[key]['dp'] = bins[:-1].copy()
-        elif key == 'raw_data':
-            data[key]['dp'] = data_dp_raw.copy()
+            data_fig[key]['dp'] = bins[:-1].copy()
         else:
-            data[key]['dp'] = np.nan
+            data_fig[key]['dp'] = np.nan
+
     for key in ('CC', 'MI', 'GC', 'TE'):
-        data_buff = cau.load_from_single(fname, key)
-        log_cau = np.log10(data_buff)
-        data['raw_data'][key] = log_cau.copy()
-        if np.any(data_buff[inf_mask]<=0):
-            print('WARNING: some negative entities occurs!')
-            inf_mask[data_buff<=0] = False
-        if key in ('TE', 'MI'):
-            log_cau += np.log10(2)
         counts_total = np.zeros(nbins)
-        nan_mask = (~np.isinf(log_cau))*(~np.isnan(log_cau))
-        for mask, ratio_, hist_key in zip((conn, ~conn), (ratio, 1-ratio), ('hist_conn', 'hist_disconn')):
-            log_TE_buffer = log_cau[mask*inf_mask*nan_mask]
-            counts, bins = np.histogram(log_TE_buffer, bins=nbins, range=hist_range,density=True)
-            counts_total += counts*ratio_
-            data[hist_key][key] = counts*ratio_
-        data['edges'][key] = bins[:-1].copy()
-        data['hist'][key] = counts_total.copy()
+        for i, hist_key in enumerate(('hist_disconn', 'hist_conn')):
+            buffer = data_recon[data_recon['connection'].eq(i)][f'log-{key}']
+            counts, bins = np.histogram(buffer, bins=nbins, range=hist_range, density=True)
+            counts *= np.abs(1-i-ratio)
+            counts_total += counts.copy()
+            data_fig[hist_key][key] = counts.copy()
+        data_fig['edges'][key] = bins[:-1].copy()
+        data_fig['hist'][key] = counts_total.copy()
 
         # KMeans clustering causal values
         if fit_p0 is None:
-            disconn_peak_id = data['hist_disconn'][key].argmax()
-            conn_peak_id = data['hist_conn'][key].argmax()
+            disconn_peak_id = data_fig['hist_disconn'][key].argmax()
+            conn_peak_id = data_fig['hist_conn'][key].argmax()
             fit_p0 = [0.5, 0.5, bins[disconn_peak_id], bins[conn_peak_id], 1, 1]
         # th_idx = dict(TE=0, GC=1, MI=2, CC=3)
         # th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
-        # TODO: Fix inaccurate double peak separation for some cases.
         try:
-            th_km = kmeans_1d(log_cau[inf_mask*nan_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
-            data['kmean_th'][key] = th_km
-            conn_recon = log_cau >= th_km
-            error_mask = np.logical_xor(conn, conn_recon)
-            data['acc_kmeans'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
-            data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn_recon[inf_mask].sum()
+            th_kmeans = kmeans_1d(data_recon[f'log-{key}'].to_numpy(), np.array([[fit_p0[2]],[fit_p0[3]]]))
+            data_fig['kmean_th'][key] = th_kmeans
+            data_recon[f'recon-kmeans-{key}'] = (data_recon[f'log-{key}'] >= th_kmeans).astype(int)
+            error_mask = np.logical_xor(data_recon['connection'], data_recon[f'recon-kmeans-{key}'])
+            data_fig['acc_kmeans'][key] = 1-error_mask.sum()/len(error_mask)
+            data_fig['ppv_kmeans'][key] = (data_recon['connection']*data_recon[f'recon-kmeans-{key}']).sum()/data_recon[f'recon-kmeans-{key}'].sum()
         except:
-            data['kmean_th'][key] = np.nan
-            data['acc_kmeans'][key] = np.nan
-            data['ppv_kmeans'][key] = np.nan
+            data_fig['kmean_th'][key] = np.nan
+            data_fig['acc_kmeans'][key] = np.nan
+            data_fig['ppv_kmeans'][key] = np.nan
 
         # Double Gaussian Anaylsis
         try:
-            popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
-            data['opt_th'][key] = threshold
-            data['log_norm_fit_pval'][key] = popt
-            data['roc_blind'][key] = np.vstack((fpr, tpr))
+            popt, th_gauss, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
+            data_fig['opt_th'][key] = th_gauss
+            data_fig['log_norm_fit_pval'][key] = popt
+            data_fig['roc_blind'][key] = np.vstack((fpr, tpr))
         except:
             popt = None
-            data['opt_th'][key] = np.nan
-            data['log_norm_fit_pval'][key] = np.nan
-            data['roc_blind'][key] = np.nan
+            data_fig['opt_th'][key] = np.nan
+            data_fig['log_norm_fit_pval'][key] = np.nan
+            data_fig['roc_blind'][key] = np.nan
         if popt is not None:
             # plot double Gaussian based ROC
             auc = -np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2)
-            data['auc_gauss'][key] = auc
+            data_fig['auc_gauss'][key] = auc
 
             # calculate reconstruction accuracy
-            conn_recon = log_cau >= threshold
-            error_mask = np.logical_xor(conn, conn_recon)
-            data['acc_gauss'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
-            data['ppv_gauss'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn_recon[inf_mask].sum()
-            counts_error, _ = np.histogram(log_cau[error_mask*inf_mask], bins=nbins, range=hist_range,density=True)
-            data['hist_error'][key] = counts_error.copy()
+            data_recon[f'recon-gauss-{key}'] = (data_recon[f'log-{key}'] >= th_gauss).astype(int)
+            error_mask = np.logical_xor(data_recon['connection'], data_recon[f'recon-gauss-{key}'])
+            data_fig['acc_gauss'][key] = 1-error_mask.sum()/len(error_mask)
+            data_fig['ppv_gauss'][key] = (data_recon['connection']*data_recon[f'recon-gauss-{key}']).sum()/data_recon[f'recon-gauss-{key}'].sum()
+            counts_error, _ = np.histogram(data_recon[f'log-{key}'][error_mask], bins=nbins, range=hist_range, density=True)
+            data_fig['hist_error'][key] = counts_error.copy()
         else:
-            data['acc_gauss'][key] = np.nan
-            data['ppv_gauss'][key] = np.nan
-            data['hist_error'][key] = np.nan
+            data_fig['acc_gauss'][key] = np.nan
+            data_fig['ppv_gauss'][key] = np.nan
+            data_fig['hist_error'][key] = np.nan
 
-        fpr, tpr, _ = roc_curve(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask])
-        data['roc_gt'][key] = np.vstack((fpr, tpr))
+        fpr, tpr, _ = roc_curve(data_recon['connection'], data_recon[f'log-{key}'])
+        data_fig['roc_gt'][key] = np.vstack((fpr, tpr))
         try:
-            auc = roc_auc_score(conn[inf_mask*nan_mask], log_cau[inf_mask*nan_mask])
+            auc = roc_auc_score(data_recon['connection'], data_recon[f'log-{key}'])
         except ValueError:
             print("Warning: only one class, AUC calculation error!")
             auc = np.nan
-        data['auc_kmeans'][key] = auc
-    return pd.DataFrame(data)
+        data_fig['auc_kmeans'][key] = auc
+
+    # Reorder columns in data
+    new_columns = ['pre_id', 'post_id', 'connection', 'recon-kmeans-TE', 'recon-gauss-TE', 'log-TE', 'log-GC', 'log-MI', 'log-CC', 'log-dp']
+    other_columns = [col for col in data_recon.columns if col not in new_columns]
+    data_recon = data_recon[new_columns + other_columns]
+        
+    return data_recon, pd.DataFrame(data_fig)
 
 def ReconstructionFigure(
     data, sc_hist=False, causal_hist_with_gt=True, ax=None):
@@ -835,7 +836,7 @@ def ReconstructionFigure(
     ax_hist.xaxis.set_major_locator(MaxNLocator(4, integer=True))
     ax_hist.xaxis.set_major_formatter(sci_formatter)
     # plot the distribution of connectivity weight if exist
-    if sc_hist and hasattr(data['hist']['conn'], '__len__'):
+    if sc_hist and 'conn' in data['hist'] and hasattr(data['hist']['conn'], '__len__'):
         ax_conn = inset_axes(ax, width="100%", height="100%",
                     bbox_to_anchor=(.05, .40, .45, .3),
                     bbox_transform=ax.transAxes, loc='center',)
@@ -913,10 +914,13 @@ def ReconstructionFigure(
     return ax, ax_hist, ax_conn, texts
 
 def ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
-                           fit_p0 = None, EI_mask=None, fig_toggle=True, nbins=100, new=False,
+                           fit_p0 = None, data:pd.DataFrame=None, EI_mask=None, fig_toggle=True, nbins=100, new=False,
                         ):
     if new:
-        fig_data = _ReconstructionAnalysis_new(pm_causal, hist_range, fit_p0, EI_mask, nbins)
+        data_recon, fig_data = _ReconstructionAnalysis_new(
+            data, int(pm_causal['Ne'])+int(pm_causal['Ni']),
+            pm_causal['path_output']+pm_causal['con_mat'], hist_range=hist_range,
+            fit_p0=fit_p0, EI_mask=EI_mask, nbins=nbins)
     else:
         fig_data = _ReconstructionAnalysis(pm_causal, hist_range, fit_p0, EI_mask, nbins)
     if fig_toggle:
@@ -924,12 +928,9 @@ def ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
         ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=True,  ax=ax[0])
         ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=False, ax=ax[1])
         
-        fig.savefig(f"image/causal_hist_recon_T={pm_causal['T']:0.0e}"
-                + f"bin={pm_causal['bin']:.3f}"
-                + f"delay={pm_causal['delay']:.2f}"
-                + f"N={pm_causal['Ne']:.0f}"
-                + f"_{pm_causal['fname']:s}.pdf", transparent=True)
-    return fig_data
+        return fig_data, fig
+    else:
+        return fig_data
 
 def load_spike_data(pm_causal:dict, xrange:tuple=(0,1000), verbose=True, **kwargs):
     """plot sample raster plot given network parameters
