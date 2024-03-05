@@ -3,7 +3,7 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from .Causality import CausalityIO, CausalityAPI, CausalityLoader
+from .Causality import CausalityIO, CausalityAPI
 from .figrc import line_rc, roc_formatter
 from .utils import Gaussian, Double_Gaussian_Analysis
 plt.rcParams['axes.spines.top']=False
@@ -18,6 +18,7 @@ import warnings
 warnings.filterwarnings('ignore')
 from sklearn.cluster import KMeans
 import struct
+import pandas as pd
 
 def get_conn_fpath(pm_causal):
     N = pm_causal['Ne']+pm_causal['Ni']
@@ -462,7 +463,6 @@ def hist_causal_blind(pm_causal, hist_range:tuple=None, fit_p0 = None, return_da
     if return_data:
         return fig_data
 
-import pandas as pd
 def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
                             fit_p0 = None, EI_mask=None, nbins=100):
     # ====================
@@ -473,7 +473,7 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
     cau = CausalityAPI(dtype=pm_causal['path_input'].split('/')[-3], N=N, **pm_causal)
     fig_data_keys = ['raw_data', 'roc_gt', 'roc_blind', 
         'hist', 'hist_conn', 'hist_disconn', 'hist_error', 'edges', 
-        'log_norm_fit_pval', 'opt_th', 'kmean_th', 
+        'log_norm_fit_pval', 'th_gauss', 'th_kmeans', 
         'acc_gauss', 'acc_kmeans', 'ppv_gauss', 'ppv_kmeans',
         'auc_gauss', 'auc_kmeans',
     ]
@@ -599,25 +599,25 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
         # TODO: Fix inaccurate double peak separation for some cases.
         try:
             th_km = kmeans_1d(log_cau[inf_mask*nan_mask], np.array([[fit_p0[2]],[fit_p0[3]]]))
-            data['kmean_th'][key] = th_km
+            data['th_kmeans'][key] = th_km
             conn_recon = log_cau >= th_km
             error_mask = np.logical_xor(conn, conn_recon)
             data['acc_kmeans'][key] = 1-error_mask[inf_mask].sum()/len(error_mask[inf_mask])
             data['ppv_kmeans'][key] = (conn_recon[inf_mask]*conn[inf_mask]).sum()/conn_recon[inf_mask].sum()
         except:
-            data['kmean_th'][key] = np.nan
+            data['th_kmeans'][key] = np.nan
             data['acc_kmeans'][key] = np.nan
             data['ppv_kmeans'][key] = np.nan
 
         # Double Gaussian Anaylsis
         try:
             popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
-            data['opt_th'][key] = threshold
+            data['th_gauss'][key] = threshold
             data['log_norm_fit_pval'][key] = popt
             data['roc_blind'][key] = np.vstack((fpr, tpr))
         except:
             popt = None
-            data['opt_th'][key] = np.nan
+            data['th_gauss'][key] = np.nan
             data['log_norm_fit_pval'][key] = np.nan
             data['roc_blind'][key] = np.nan
         if popt is not None:
@@ -644,19 +644,25 @@ def _ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
     return pd.DataFrame(data)
 
 
-def _ReconstructionAnalysis_new(
-        data:pd.DataFrame, N:int, conn_file:str,
-        Ni:int=None, hist_range:tuple=None, nbins=100, fit_p0 = None, 
-        mask_file:str=None, EI_mask:str=None,):
-    N = N if Ni is None else N+Ni
-    fig_data_keys = ['roc_gt', 'roc_blind', 
-        'hist', 'hist_conn', 'hist_disconn', 'hist_error', 'edges', 
-        'log_norm_fit_pval', 'opt_th', 'kmean_th', 
-        'acc_gauss', 'acc_kmeans', 'ppv_gauss', 'ppv_kmeans',
-        'auc_gauss', 'auc_kmeans',
-    ]
-    data_fig = {key: {} for key in fig_data_keys}
-    data_recon = data.copy()
+# match cell-type, connectivity, masking to causality data
+def match_features(data:pd.DataFrame, N:int, conn_file:str,
+        Ni:int=0, EI_types:np.ndarray=None, mask_file:str=None):
+    """match causality data other network features, 
+
+    Args:
+        data (pd.DataFrame): causality data.
+        N (int): number of (excitatory) neurons.
+        conn_file (str): filename of connectivity matrix, both dense and sparse matrix supported.
+        Ni (int, optional): number of inhibitory neurons, if nonzero, the total number of neuron N+Ni.
+            Defaults to 0.
+        EI_types (dict, optional): {'neuron_id':[...], 'EI_type':[...]}. Defaults to None.
+        mask_file (str, optional): filename of masking used in causality calculation. Defaults to None.
+
+    Returns:
+        data_match: DataFrame of integrated data.
+    """
+    
+    data_match = data.copy()
     
     # Transform causality column in data to log10-scale
     new_columns_map = {
@@ -667,9 +673,30 @@ def _ReconstructionAnalysis_new(
         'log-dp': 'Delta_p',
     }
     for key, val in new_columns_map.items():
-        data_recon[key] = np.log10(np.abs(data_recon[val]))
+        data_match[key] = np.log10(np.abs(data_match[val]))
         if key in ('log-TE', 'log-MI'):
-            data_recon[key] += np.log10(2)
+            data_match[key] += np.log10(2)
+
+    N = N + Ni
+
+    # match causality mask
+    if mask_file is not None:
+        mask = np.fromfile(mask_file, dtype=float).reshape(2,-1)
+        mask_pre_id, mask_post_id = mask.astype(int)
+        mask = pd.DataFrame({'pre_id':mask_pre_id, 'post_id':mask_post_id}).astype(int)
+        # Select rows in data according to mask
+        data_match = data_match.merge(mask, how='inner', on=['pre_id', 'post_id'])
+
+    # match EI types
+    if EI_types is None:
+        data_match['pre_cell_type'] = ['E' if ele else 'I' for ele in data_match['pre_id'] < N-Ni]
+        data_match['post_cell_type'] = ['E' if ele else 'I' for ele in data_match['post_id'] < N-Ni]
+    else:
+        assert isinstance(EI_types, dict), 'EI_types should be a dict!'
+        df_tmp = pd.DataFrame({'pre_id':EI_types['neuron_id'], 'pre_cell_type':EI_types['EI_type']})
+        data_match = data_match.merge(df_tmp, how='left', on='pre_id')
+        df_tmp = pd.DataFrame({'post_id':EI_types['neuron_id'], 'post_cell_type':EI_types['EI_type']})
+        data_match = data_match.merge(df_tmp, how='left', on='post_id')
 
     # load connectivity matrix 
     conn_raw = np.fromfile(conn_file, dtype=float)
@@ -686,42 +713,54 @@ def _ReconstructionAnalysis_new(
         conn_raw = conn_raw.reshape(2,-1)
         pre_id, post_id = conn_raw
 
-    if mask_file is not None:
-        mask = np.fromfile(mask_file, dtype=float).reshape(2,-1)
-        mask_pre_id, mask_post_id = mask.astype(int)
-        mask = pd.DataFrame({'pre_id':mask_pre_id, 'post_id':mask_post_id}).astype(int)
-        # Select rows in data according to mask
-        data_recon = data_recon.merge(mask, how='inner', on=['pre_id', 'post_id'])
-
-    if EI_mask is not None:
-        if EI_mask == 'E':
-            data_recon = data_recon[data_recon['pre_id'] < N-Ni]
-        elif EI_mask == 'I':
-            data_recon = data_recon[data_recon['pre_id'] >= N-Ni]
-        else:
-            raise ValueError('EI_mask error!')
-
-    # Create a DataFrame from dd
     conn_pairs = pd.DataFrame(
         {'pre_id':pre_id, 'post_id':post_id, 'connection':np.ones_like(pre_id, dtype=int)})
     # Merge conn_pairs with data
-    data_recon = data_recon.merge(conn_pairs, how='left', on=['pre_id', 'post_id'])
+    data_match = data_match.merge(conn_pairs, how='left', on=['pre_id', 'post_id'])
     # Fill missing rows in 'connection' column with 0
-    data_recon['connection'].fillna(0, inplace=True)
+    data_match['connection'].fillna(0, inplace=True)
 
     # merge connection strength if exist
     if conn_weight is not None:
         weight_pairs = pd.DataFrame(
             {'pre_id':pre_id, 'post_id':post_id, 'weight':weight_pairs})
-        data_recon = data_recon.merge(conn_pairs, how='left', on=['pre_id', 'post_id'])
-        data_recon['weight'].fillna(0, inplace=True)
+        data_match = data_match.merge(conn_pairs, how='left', on=['pre_id', 'post_id'])
+        data_match['weight'].fillna(0, inplace=True)
 
-        if 'LN' in conn_file:
+    # drop inf and nan rows, mainly self-connections
+    data_match.replace([np.inf, -np.inf], np.nan, inplace=True)
+    data_match.dropna(inplace=True)
+    return data_match
+
+def _ReconstructionAnalysis_new(data:pd.DataFrame,
+        hist_range:tuple=None, nbins=100, fit_p0 = None, EI_mask:str=None, weight_hist_type:str='linear'):
+    fig_data_keys = ['roc_gt', 'roc_blind', 
+        'hist', 'hist_conn', 'hist_disconn', 'hist_error', 'edges', 
+        'log_norm_fit_pval', 'th_gauss', 'th_kmeans', 
+        'acc_gauss', 'acc_kmeans', 'ppv_gauss', 'ppv_kmeans',
+        'auc_gauss', 'auc_kmeans',
+    ]
+    data_fig = {key: {} for key in fig_data_keys}
+    data_recon = data.copy()
+    
+    if EI_mask is not None:
+        if EI_mask == 'E':
+            data_recon = data_recon[data_recon['pre_cell_type'].eq('E')]
+        elif EI_mask == 'I':
+            data_recon = data_recon[data_recon['pre_cell_type'].eq('E')]
+        else:
+            raise ValueError('EI_mask error!')
+
+    # merge connection strength if exist
+    if 'weight' in data_recon:
+        if weight_hist_type == 'log':
             counts, bins = np.histogram(
                 np.log10(data_recon[data_recon['connection'].eq(1)]), bins=40)
-        else:
+        elif weight_hist_type == 'linear':
             counts, bins = np.histogram(
                 data_recon[data_recon['connection'].eq(1)], bins=40)
+        else:
+            raise ValueError('weight_hist_type error!')
         for key in data_fig.keys():
             if key == 'hist':
                 data[key]['conn']  = counts.copy()
@@ -731,8 +770,6 @@ def _ReconstructionAnalysis_new(
                 data[key]['conn'] = np.nan
 
     # drop inf and nan rows, mainly self-connections
-    data_recon.replace([np.inf, -np.inf], np.nan, inplace=True)
-    data_recon.dropna(inplace=True)
     ratio = data_recon['connection'].mean()
 
     if hist_range is None:
@@ -765,29 +802,29 @@ def _ReconstructionAnalysis_new(
             disconn_peak_id = data_fig['hist_disconn'][key].argmax()
             conn_peak_id = data_fig['hist_conn'][key].argmax()
             fit_p0 = [0.5, 0.5, bins[disconn_peak_id], bins[conn_peak_id], 1, 1]
-        # th_idx = dict(TE=0, GC=1, MI=2, CC=3)
-        # th_km = np.log10(cau.load_from_single(fname, 'th')[th_idx[key]])
         try:
             th_kmeans = kmeans_1d(data_recon[f'log-{key}'].to_numpy(), np.array([[fit_p0[2]],[fit_p0[3]]]))
-            data_fig['kmean_th'][key] = th_kmeans
+            data_fig['th_kmeans'][key] = th_kmeans
             data_recon[f'recon-kmeans-{key}'] = (data_recon[f'log-{key}'] >= th_kmeans).astype(int)
             error_mask = np.logical_xor(data_recon['connection'], data_recon[f'recon-kmeans-{key}'])
             data_fig['acc_kmeans'][key] = 1-error_mask.sum()/len(error_mask)
             data_fig['ppv_kmeans'][key] = (data_recon['connection']*data_recon[f'recon-kmeans-{key}']).sum()/data_recon[f'recon-kmeans-{key}'].sum()
         except:
-            data_fig['kmean_th'][key] = np.nan
+            print("Warning: KMeans clustering failed!")
+            data_fig['th_kmeans'][key] = np.nan
             data_fig['acc_kmeans'][key] = np.nan
             data_fig['ppv_kmeans'][key] = np.nan
 
         # Double Gaussian Anaylsis
         try:
             popt, th_gauss, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
-            data_fig['opt_th'][key] = th_gauss
+            data_fig['th_gauss'][key] = th_gauss
             data_fig['log_norm_fit_pval'][key] = popt
             data_fig['roc_blind'][key] = np.vstack((fpr, tpr))
         except:
+            print("Warning: Double Gaussian Anaylsis failed!")
             popt = None
-            data_fig['opt_th'][key] = np.nan
+            data_fig['th_gauss'][key] = np.nan
             data_fig['log_norm_fit_pval'][key] = np.nan
             data_fig['roc_blind'][key] = np.nan
         if popt is not None:
@@ -850,13 +887,13 @@ def ReconstructionFigure(
     else:
         ax_conn = None
     if causal_hist_with_gt:
-        th_key = 'kmean_th'
+        th_key = 'th_kmeans'
         auc_key = 'auc_kmeans'
         acc_key = 'acc_kmeans'
         ppv_key = 'ppv_kmeans'
         roc_key = 'roc_gt'
     else:
-        th_key = 'opt_th'
+        th_key = 'th_gauss'
         auc_key = 'auc_gauss'
         acc_key = 'acc_gauss'
         ppv_key = 'ppv_gauss'
@@ -913,16 +950,26 @@ def ReconstructionFigure(
     plt.tight_layout()
     return ax, ax_hist, ax_conn, texts
 
-def ReconstructionAnalysis(pm_causal, hist_range:tuple=None,
-                           fit_p0 = None, data:pd.DataFrame=None, EI_mask=None, fig_toggle=True, nbins=100, new=False,
-                        ):
-    if new:
-        data_recon, fig_data = _ReconstructionAnalysis_new(
-            data, int(pm_causal['Ne'])+int(pm_causal['Ni']),
-            pm_causal['path_output']+pm_causal['con_mat'], hist_range=hist_range,
-            fit_p0=fit_p0, EI_mask=EI_mask, nbins=nbins)
+def ReconstructionAnalysis_new(
+        data:pd.DataFrame, hist_range:tuple=None,
+        fit_p0 = None, EI_mask=None, fig_toggle=True, nbins=100,
+    ):
+    data_recon, fig_data = _ReconstructionAnalysis_new(
+        data, hist_range=hist_range, fit_p0=fit_p0, EI_mask=EI_mask, nbins=nbins)
+    if fig_toggle:
+        fig, ax = plt.subplots(1,2, figsize=(13,6))
+        ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=True,  ax=ax[0])
+        ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=False, ax=ax[1])
+        
+        return fig_data, fig
     else:
-        fig_data = _ReconstructionAnalysis(pm_causal, hist_range, fit_p0, EI_mask, nbins)
+        return fig_data
+
+def ReconstructionAnalysis(
+        pm_causal, hist_range:tuple=None, fit_p0 = None,
+        EI_mask=None, fig_toggle=True, nbins=100,
+    ):
+    fig_data = _ReconstructionAnalysis(pm_causal, hist_range, fit_p0, EI_mask, nbins)
     if fig_toggle:
         fig, ax = plt.subplots(1,2, figsize=(13,6))
         ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=True,  ax=ax[0])
