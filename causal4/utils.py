@@ -249,9 +249,9 @@ def Double_Gaussian_Analysis(counts, bins, p0=None):
         popt, _ = curve_fit(Double_Gaussian, bins[:-1], counts, p0=p0)
         # calculate threshold, find crossing point of two Gaussian
         if popt[2] < popt[3]:
-            x_grid = np.linspace(popt[2]-0.2, popt[3]+0.2, 10000)
+            x_grid = np.linspace(popt[2]-0.02, popt[3]+0.02, 10000)
         else:
-            x_grid = np.linspace(popt[3]-0.2, popt[2]+0.2, 10000)
+            x_grid = np.linspace(popt[3]-0.02, popt[2]+0.02, 10000)
         th_ = x_grid[np.argmin(np.abs(Gaussian(x_grid, popt[0], popt[2], popt[4], )-Gaussian(x_grid, popt[1], popt[3], popt[5], )))]
 
         true_cumsum = np.cumsum(Gaussian(bins[:-1], popt[0], popt[2], popt[4], ))

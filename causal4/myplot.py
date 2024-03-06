@@ -3,6 +3,7 @@
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from .Causality import CausalityIO, CausalityAPI
 from .figrc import line_rc, roc_formatter
 from .utils import Gaussian, Double_Gaussian_Analysis
@@ -66,7 +67,7 @@ def kmeans_1d(X:np.ndarray, init='kmeans++', return_label:bool=False):
     else:
         return threshold
 
-def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
+def hist_causal_with_conn_mask(data_fig:pd.DataFrame, hist_range:tuple=None)->None:
     """Histogram of causality masked by ground truth.
 
     Args:
@@ -74,73 +75,43 @@ def hist_causal_with_conn_mask(pm_causal:dict, hist_range:tuple=None)->None:
         hist_range (tuple): range of the histogram. Default None.
     """
 
-    N = pm_causal['Ne']+pm_causal['Ni']
-    fname_conn = get_conn_fpath(pm_causal)
-    conn = np.fromfile(fname_conn, dtype=float
-        )[:int(N*N)].reshape(N,N).astype(bool)
-    fname = pm_causal['fname']
-    causal_dtype = fname.split('=')[0][:-1]
-    cau = CausalityIO(dtype=causal_dtype, N=(pm_causal['Ne'], pm_causal['Ni']), **pm_causal)
-
     fig, ax = plt.subplots(1,2,figsize=(10,4))
-    ths = cau.load_from_single(fname, 'th')
-    print(cau.load_from_single(fname, 'acc'))
-    inf_mask = ~np.eye(N, dtype=bool)
+    print(data_fig['acc_kmeans'].dropna())
 
-    conn_weight = np.fromfile(fname_conn, dtype=float)[int(N*N):]
-    if conn_weight.shape[0] > 0:
-        conn_weight= conn_weight.reshape(N,N)
+    if 'conn' in data_fig.index:
         axins = inset_axes(ax[0], width="100%", height="100%",
                         bbox_to_anchor=(.05, .55, .4, .3),
                         bbox_transform=ax[0].transAxes, loc='center')
         axins.spines['left'].set_visible(False)
 
-        zero_mask = conn_weight>0
-        if 'LN-' in causal_dtype:
-            axins.hist(np.log10(conn_weight[inf_mask*zero_mask]), bins=40)
+        axins.bar(data_fig['edges']['conn'], data_fig['hist']['conn'],
+                  width=data_fig['edges']['conn'][1]-data_fig['edges']['conn'][0])
+        if data_fig['edges']['conn'][0] < 0:
             axins.xaxis.set_major_formatter(sci_formatter)
-        else:
-            axins.hist(conn_weight[inf_mask*zero_mask], bins=40)
         axins.set_xticklabels(axins.get_xticks(), fontsize=12)
         axins.set_title('Structural Conn', fontsize=12)
         axins.set_yticks([])
 
-    if hist_range is None:
-        # determine histogram value range
-        data_buff = cau.load_from_single(fname, 'TE')
-        if np.any(data_buff[inf_mask]<=0):
-            print('WARNING: some negative entities occurs!')
-            inf_mask[data_buff<=0] = False
-        data_buff = np.log10(data_buff[inf_mask])
-        hist_range = (np.floor(data_buff.min())+1, np.ceil(data_buff.max())+1)
-
-    ratio = np.sum(conn[inf_mask])/np.sum(inf_mask)
-    for counter, key in enumerate(('CC', 'MI', 'GC', 'TE')):
-        data_buff = cau.load_from_single(fname, key)
-        if np.any(data_buff[inf_mask]<=0):
-            print('WARNING: some negative entities occurs!')
-            inf_mask[data_buff<=0] = False
-        log_TE = np.log10(data_buff)
-        if key in ('TE', 'MI'):
-            log_TE += np.log10(2)
-        for mask, linestyle, ratio_ in zip((conn, ~conn), ('-', ':'), (ratio, 1-ratio)):
-            log_TE_buffer = log_TE[mask*inf_mask]
-            # log_TE_buffer = log_TE_buffer[~np.isinf(log_TE_buffer)*~np.isnan(log_TE_buffer)]
-            counts, bins = np.histogram(log_TE_buffer, bins=100, range=hist_range,density=True)
-            ax[0].plot(bins[:-1], counts*ratio_, ls=linestyle, **line_rc[key])
-        ax[0].axvline(np.log10(ths[counter]), color=line_rc[key]['color'], ls='--')
-        fpr, tpr, _ = roc_curve(conn[inf_mask], log_TE[inf_mask])
-        label = line_rc[key]['label'] + f" : {roc_auc_score(conn[inf_mask], log_TE[inf_mask]):.2f}"
+    for key in ('CC', 'MI', 'GC', 'TE'):
+        for conn_key, linestyle in zip(('hist_conn', 'hist_disconn'), ('-', ':')):
+            ax[0].plot(data_fig['edges'][key], data_fig[conn_key][key], ls=linestyle, **line_rc[key])
+        ax[0].axvline(data_fig['th_kmeans'][key], color=line_rc[key]['color'], ls='--')
+        fpr, tpr = data_fig['roc_gt'][key]
+        label = line_rc[key]['label'] + f" : {data_fig['auc_kmeans'][key]:.2f}"
         ax[1].plot(fpr, tpr, lw=line_rc[key]['lw'], color=line_rc[key]['color'], label=label)[0].set_clip_on(False)
     ax[0].set_ylabel('Probability distribution')
     ax[0].set_xlabel('Causal value')
     ax[0].set_ylim(0)
-    format_xticks(ax[0], hist_range)
+    if hist_range is None:
+        hist_range = (data_fig['edges']['TE'][0], data_fig['edges']['TE'][-1])
+    else:
+        format_xticks(ax[0], hist_range)
     ax[1].legend()
     ax[1]=roc_formatter(ax[1])
     plt.tight_layout()
 
-    fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
+    # fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
+    return fig
 
 
 def hist_causal_with_conn_mask_linear(pm_causal:dict, hist_range:tuple=None)->None:
@@ -215,40 +186,32 @@ def hist_causal_with_conn_mask_linear(pm_causal:dict, hist_range:tuple=None)->No
 
     fig.savefig('image/'+f"histogram_of_causal_with_conn_mask_linear_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
 
-def hist_dp(pm_causal:dict, hist_range:tuple=None)->None:
+def hist_dp(data:pd.DataFrame, **kwargs)->None:
     """Histogram of Delta pm and dp without masking.
 
     Args:
-        pm_causal (dict): dict of causality parameters.
+        data (pd.DataFrame): causality data or matched causality data
+
     """
 
-    N = pm_causal['Ne']+pm_causal['Ni']
-    fname = pm_causal['fname']
-    causal_dtype = fname.split('=')[0][:-1]
-    cau = CausalityIO(dtype=causal_dtype, N=(pm_causal['Ne'], pm_causal['Ni']), **pm_causal)
     fig, ax = plt.subplots(1,1,figsize=(5,4))
-    inf_mask = ~np.eye(N, dtype=bool)
-    for var, label in zip(('Delta_p', 'dp'), (r'$\Delta p_m$', r'$\delta p$')):
-        data_var = cau.load_from_single(fname, var)
-        data_var = np.log10(np.abs(data_var[inf_mask]))
-        counts, bins = np.histogram(
-            data_var[~np.isinf(data_var)*(~np.isnan(data_var))], 
-            bins=100, density=True, range=hist_range)
-        ax.plot(bins[:-1], counts, label=label)
-        ax.legend()
+    if 'bins' not in kwargs:
+        kwargs['bins'] = 100
+    if 'log-dp' in data:
+        sns.histplot(data['log-dp'], kde=True, stat='density', ec='none', ax=ax, label=r'$\Delta p_m$',**kwargs)
+    else:
+        sns.histplot(np.log10(data['Delta_p']), kde=True, stat='density', ec='none', ax=ax, label=r'$\Delta p_m$',**kwargs)
+    sns.histplot(np.log10(data['dp1']), kde=True, stat='density', ec='none', ax=ax, label=r'$\delta p$',**kwargs)
+    ax.legend()
     ax.set_ylim(0)
-    if hist_range is not None:
-        ax.set_xlim(*hist_range)
     ax.xaxis.set_major_formatter(sci_formatter)
     ax.set_xlabel(r'$\Delta p_m$ or $\delta_p$ values')
-    ax.set_ylabel('Probability density')
+    ax.set_ylabel('probability density')
     ax.axvline(0, ls='--', color='r')
     plt.tight_layout()
 
-    if 'T' in pm_causal:
-        fig.savefig('image/'+f"histogram_of_dp_Delta_p_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
-    else:
-        fig.savefig('image/'+f"histogram_of_dp_Delta_p_bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
+    #    fig.savefig('image/'+f"histogram_of_dp_Delta_p_T={pm_causal['T']:0.0e}bin={pm_causal['bin']:.3f}delay={pm_causal['delay']:.2f}_{fname:s}.pdf")
+    return fig
 
 
 def hist_causal(pm_causal:dict, hist_range:tuple=None)->None:
@@ -979,33 +942,23 @@ def ReconstructionAnalysis(
     else:
         return fig_data
 
-def load_spike_data(pm_causal:dict, xrange:tuple=(0,1000), verbose=True, **kwargs):
+def load_spike_data(spk_file_path:str, xrange:tuple=(0,1000), verbose=True, **kwargs):
     """plot sample raster plot given network parameters
 
     Args:
-        pm_causal (dict): paramter dictionary
+        spk_file_path (str): relative path of spike files
         xrange (tuple, optional): range of xaxis. Defaults to (0,1000).
 
     Returns:
         spike_data: np.ndarray, (num_spikes, 2)
     """
-    N = int(pm_causal['Ne']+pm_causal['Ni'])
-    if pm_causal['Ne'] * pm_causal['Ni'] > 0:
-        neuron_type = 'EI'
-    elif pm_causal['Ne'] > 0:
-        neuron_type = 'EE'
-    elif pm_causal['Ni'] > 0:
-        neuron_type = 'II'
-    else:
-        raise ValueError('Neuron number error!')
-    spk_fname = f"{pm_causal['path_input']}{neuron_type:s}/N={N:d}/{pm_causal['fname']:s}_spike_train.dat"
     n_time = 1000
-    with open(spk_fname, 'rb') as f:
-        data_buff = f.read(8*2*N*n_time)
+    with open(spk_file_path, 'rb') as f:
+        data_buff = f.read(8*2*n_time)
         data_len = int(len(data_buff)/16)
         spk_data = np.array(struct.unpack('d'*2*data_len, data_buff)).reshape(-1,2)
         while spk_data[-1,0] < xrange[1]:
-            data_buff = f.read(8*2*N*n_time)
+            data_buff = f.read(8*2*n_time)
             data_len = int(len(data_buff)/16)
             if data_len == 0:
                 print('reaching end of file')
@@ -1015,6 +968,7 @@ def load_spike_data(pm_causal:dict, xrange:tuple=(0,1000), verbose=True, **kwarg
 
     mask = (spk_data[:,0] > xrange[0]) * (spk_data[:,0] < xrange[1])
     if verbose:
+        N = np.unique(spk_data[:,1]).shape[0]
         print(f"mean firing rate is {spk_data.shape[0]/spk_data[-1,0]/N*1000.:.3f} Hz")
     return spk_data[mask, :]
 
@@ -1030,7 +984,8 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
     Returns:
         matplotlib.Figure: figure containing raster plot
     """
-    spk_data = load_spike_data(pm_causal, xrange)
+    spk_file_path = pm_causal['path'] + pm_causal['spk_fname'] + '_spike_train.dat'
+    spk_data = load_spike_data(spk_file_path, xrange)
     if ax is None:
         fig, ax = plt.subplots(1,1,figsize=(12,3))
     else:
@@ -1040,7 +995,7 @@ def plot_raster(pm_causal:dict, xrange:tuple=(0,1000), return_spk:bool=False, ax
     ax.set_xlabel('Time (ms)')
     ax.set_ylabel('Neuronal Indices')
     plt.tight_layout()
-    fig.savefig('image/'+f"raster_{pm_causal['fname']:s}.pdf")
+    fig.savefig('image/'+f"raster_{pm_causal['spk_fname']:s}.pdf")
     if return_spk:
         return fig, spk_data
     else:

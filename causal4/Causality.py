@@ -173,15 +173,19 @@ class CausalityEstimator(object):
         self.delay = delay_range[np.argmax(dfs.mean(1))]
         return self.delay
 
+    def causality_fname(self, delay:float=None):
+        if delay is None and self.delay is None:
+            raise ValueError("delay is not specified.")
+        else:
+            delay = self.delay if delay is None else delay
+            return f"TGIC2.0-K={self.order[0]:d}_{self.order[1]:d}" \
+                    + f"bin={self.dt:.2f}delay={delay:.2f}" \
+                    + f"T={self.T:.2e}-{self.spk_fname:s}.dat"
+
     def _check_exist(self, delay:float=None):
-        if delay is None:
-            delay = self.delay
-        causal_fname = self.path + '/'
-        causal_fname += f"TGIC2.0-K={self.order[0]:d}_{self.order[1]:d}" \
-                        + f"bin={self.dt:.2f}delay={delay:.2f}" \
-                        + f"T={self.T:.2e}-{self.spk_fname:s}.dat"
-        if os.path.exists(causal_fname):
-            return causal_fname
+        causality_full_fname = self.path + '/' + self.causality_fname(delay)
+        if os.path.exists(causality_full_fname):
+            return causality_full_fname
         else:
             return False
 
@@ -205,9 +209,8 @@ class CausalityEstimator(object):
             DT = self.DT,
             dt = self.dt,
             delay = delay,
-            path_input = self.path,
-            path_output = self.path,
-            fname = self.spk_fname,
+            path = self.path,
+            spk_fname = self.spk_fname,
             n_thread = self.n_thread,
         )
         if self.T is None:
@@ -634,7 +637,7 @@ def run(verbose=False, shuffle=False, force_regen=False, **kwargs) -> str:
     '''
     flag_map = dict(
         cfg_file = "-c %s",
-        fname = "-f %s",
+        spk_fname = "-f %s",
         N = "-N %d",
         order = '--order %d,%d', # Trick: use comma to separate two order numbers;
         T = "--Tmax %f",
@@ -642,8 +645,7 @@ def run(verbose=False, shuffle=False, force_regen=False, **kwargs) -> str:
         auto_Tmax = "--auto_Tmax",
         dt = "--dt %f",
         delay = "--delay %f",
-        path_input = "--path_input %s",
-        path_output = "--path_output %s",
+        path = "-p %s",
         mask_file = "--mask_file %s",
         n_thread = "-j %d",
     )
@@ -660,10 +662,10 @@ def run(verbose=False, shuffle=False, force_regen=False, **kwargs) -> str:
     cml_options += ' -v'
     if shuffle:
         cml_options += ' -s'
-    output_file = kwargs['path_output'] + '/'
+    output_file = kwargs['path'] + '/'
     output_file += f"TGIC2.0-K={kwargs['order'][0]:d}_{kwargs['order'][1]:d}" \
                    + f"bin={kwargs['dt']:.2f}delay={kwargs['delay']:.2f}" \
-                   + f"T={kwargs['T']:.2e}-{kwargs['fname']:s}.dat"
+                   + f"T={kwargs['T']:.2e}-{kwargs['spk_fname']:s}.dat"
     if force_regen or not Path(output_file).exists():
         #* Trick: replace comma with space
         cml_options_list = [item.replace(',', ' ') if ',' in item else item for item in cml_options.split(' ')]

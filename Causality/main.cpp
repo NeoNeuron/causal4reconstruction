@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 	);
     po::options_description config("Configs");
     config.add_options()
-        ("filename,f", po::value<string>(), "str, filename of data file")
+        ("spike_train_filename,f", po::value<string>(), "str, filename of spike train data file")
         ("N,N", po::value<int>()->default_value(2), "int, number of neurons")
         ("order", po::value<string>()->default_value("1 1"), "tuple, order of TE. Syntax: 'order_x order_y', 'k l'; ")
         ("Tmax,T", po::value<double>()->default_value(1e7), "float, maximum time length used in estimation, default unit in ms.")
@@ -45,9 +45,7 @@ int main(int argc, char **argv)
         ("dt", po::value<double>()->default_value(0.5), "float, temporal binsize to binarize spike trains, same unit as Tmax.")
         ("delay", po::value<double>()->default_value(0.0), "float, time delay, tau, same unit as Tmax.")
         ("shuffle,s", po::bool_switch(&shuffle_flag), "bool, shuffle the raw spike train for permutation test.")
-        ("matrix_name", po::value<string>()->default_value("./"), "str, filename of connectivity matrix [deprecated].")
-        ("path_input", po::value<string>()->default_value("./"), "str, path for input data file")
-        ("path_output", po::value<string>()->default_value("./"), "str, path for output data file")
+        ("path,p", po::value<string>()->default_value("./"), "str, path for spike train, masking and output files")
         ("n_thread,j", po::value<int>()->default_value(1), "int, number of threads for causality estimation")
         ("mask_file", po::value<string>(), "str, filename of mask file in compressed sparse matrix.")
         ;
@@ -99,8 +97,8 @@ int main(int argc, char **argv)
 		// tau = delay/dt,  delay: x(n+tau+1), x(n+tau), y(n)
     double L, accuracy[4], threshold[4];
 
-    char input_filename[200], output_filename[200];
-    char path_input[200], path_output[200];
+    char input_filename[200];
+    char path[200];
     int m[2];		// pow(2.0,order_x) and pow(2,order_y)
 
     FILE *FP;
@@ -110,13 +108,11 @@ int main(int argc, char **argv)
 	for (int i = 0; i < 2; i++)
 		order[i] = order_vec[i];
 
-	strcpy(input_filename,  vm["filename"].as<string>().c_str());
-	strcpy(path_input,    vm["path_input"].as<string>().c_str());
-	strcpy(path_output,  vm["path_output"].as<string>().c_str());
+	strcpy(input_filename, vm["spike_train_filename"].as<string>().c_str());
+	strcpy(path, vm["path"].as<string>().c_str());
 
 	// naming output folder 
-	strcat(path_input, "/");
-	strcat(path_output, "/");
+	strcat(path, "/");
 
     // Output_filename();
 	k = order[1];
@@ -134,11 +130,11 @@ int main(int argc, char **argv)
 
 	t0 = clock();
 
-	strcpy(str, path_input), strcat(str, input_filename), strcat(str, "_spike_train.dat");
+	strcpy(str, path), strcat(str, input_filename), strcat(str, "_spike_train.dat");
 	fp = fopen(str, "rb");
 	if (fp == NULL)
 	{
-		printf("Error in read file: %s\n%s\n", path_input, input_filename);
+		printf("Error in read file: %s\n%s\n", path, input_filename);
 		exit(0);
 	}
 
@@ -149,7 +145,7 @@ int main(int argc, char **argv)
 	if (Tmax / DT <= 0.99)
 	{
 		printf("Warning! Tmax=%0.3e < DT=%0.3e!\n", Tmax, DT);
-		printf("path:%s\nfilename:%s\n", path_input, input_filename);
+		printf("path:%s\nfilename:%s\n", path, input_filename);
 		Tmax = DT;
 	}
 	read_repeat = int(Tmax / DT + 0.01);
@@ -161,7 +157,7 @@ int main(int argc, char **argv)
 	bool mask_toggle = false;
 	vector<vector<double> > mask_indices(2);
     if (vm.count("mask_file")) {
-		strcpy(mask_fname, path_input); 
+		strcpy(mask_fname, path); 
 		strcat(mask_fname, vm["mask_file"].as<string>().c_str());
 		FILE *fp_mask;
 		fp_mask = fopen(mask_fname, "rb");
@@ -243,8 +239,9 @@ int main(int argc, char **argv)
 	// sum DMI(x_n+1+tau,y_n), CC(x_n+1+tau,y_n)
 
 	// format output filename
+    char output_filename[200];
 	sprintf(buffer, "TGIC2.0-K=%d_%dbin=%0.2fdelay=%0.2fT=%0.2e-", order[0], order[1], dt, delay, Tmax);
-	strcpy(str, path_output);
+	strcpy(str, path);
 	strcat(str, buffer);
 	strcat(str, input_filename);
 	if (shuffle_flag)
