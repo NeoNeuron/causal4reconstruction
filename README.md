@@ -1,6 +1,6 @@
-# Quantitative relations among causality measures with applications to pulse-output nonlinear network reconstruction
+# Causal connectivity measures for pulse-output network reconstruction
 
-This is the code for the paper "Quantitative relations among causality measures with applications to pulse-output nonlinear network reconstruction", and **it will be available publicly upon publication**.
+Ccode for paper "Causal connectivity measures pulse-output network reconstruction: analysis and applications" (in press), and **it will be available publicly upon publication**.
 
 ## Requirements
 
@@ -11,7 +11,8 @@ This is the code for the paper "Quantitative relations among causality measures 
 
 ### Python
 
-Numpy, Matplotlib, Scipy, Sci-kit Learn, Seaborn, Brian2
+- network simulation: numpy, brian2
+- network reconstruction: numpy, pandas matplotlib, scipy, sci-kit learn, seaborn, 
 
 ## Installation
 
