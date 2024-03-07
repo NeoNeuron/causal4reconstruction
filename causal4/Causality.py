@@ -682,8 +682,8 @@ def run(verbose=False, shuffle=False, force_regen=False, **kwargs) -> str:
             print(f'File {output_file:s} exists.')
     return output_file
 # %%
-# from multiprocessing import Pool
-from ray.util.multiprocessing import Pool
+from multiprocessing import Pool
+# from ray.util.multiprocessing import Pool
 def scan_pm_single(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwargs):
     """ Scan causality based on the single data file.
         Call C/C++ interface to calculate causal values.

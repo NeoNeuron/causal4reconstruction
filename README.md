@@ -1,17 +1,26 @@
 # Pairwise Causality Measure onto Pulse-output Signals
 
-Original code for paper: "Quantitative relations among causality measures with applications to pulse-output nonlinear network reconstruction"
+Original code for paper: "Causal connectivity measures for pulse-output network reconstruction: analysis and applications"
 
 ## Requirements
 
 ### C/C++ Dependencies
 
 - [`Eigen`](https://eigen.tuxfamily.org): library of vector/matrix operation
+
+  ```bash
+  sudo apt-get update
+  sudo apt-get install libeigen3-dev
+  ```
 - [`boost`](http://www.boost.org/users/download/): containing library used for argparsers.
+
+  ```bash
+  sudo apt-get install libboost-all-dev
+  ```
 
 ### Python
 
-Numpy, Matplotlib, Scipy, Sci-kit Learn, Seaborn, Brian2
+numpy, pandas, matplotlib, scipy, sci-kit learn, seaborn, brian2
 
 ## Installation
 
@@ -24,9 +33,13 @@ make all -j
 ### Install Python utilities
 
 ```bash
-conda create -n causal4 python=3.10 --file requirements.txt -c conda-forge
+conda create -n causal4 python=3.11 --file requirements.txt -c conda-forge
 conda activate causal4
 pip install -e .
+```
+
+Install additional packages for running large E-I balanced network simulation:
+```bash
 pip install --upgrade "jax[cpu]"
 pip install -U brainpy
 pip install brainpylib

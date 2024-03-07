@@ -13,6 +13,6 @@ setuptools.setup(
 
     description="Software package for studies of 4 causality measures.",
 
-    install_requires=['numpy', 'matplotlib', 'scipy', 'networkx'],
+    install_requires=['numpy', 'matplotlib', 'pandas', 'tqdm', 'scipy', 'networkx'],
     packages=setuptools.find_packages(),
 )
