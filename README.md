@@ -48,27 +48,38 @@ pip install -U "ray[default]"
 
 ## Usage
 
+0. Run simulation of HH10 and HH100 models:
+    ```bash
+    ./code4paper/run_HH10_scan_S.py
+    ./code4paper/run_HH100.py
+    ```
+    The results will be saved in `./HH/data/EE/N=10/` and `./HH/data/EE/N=100` respectively.
+
 1. Figure 2:
     ```bash
-    pm_scan_kl_HH10.py
+    ./code4paper/pm_scan_kl_HH10.py
     ```
 2. Figure 3:
     ```bash
-    pm_scan_kl_HH10.py
-    order_k_th.py
-    order_l_th.py
-    scan_l.py
-    scan_S.py
+    ./code4paper/pm_scan_kl_HH10.py
     ```
 3. Figure 4:
     ```bash
-    test_HH_recon.py
-    test_HH100_recon.py
+    ./code4paper/HH100_recon_pnas.py
     ```
 4. Figure 5:
+    To access allen data, you need to download the data using allensdk (or download directly from [Allen Institute](https://portal.brain-map.org/)).
+    
+    Install allensdk:
     ```bash
-    download_allen_observatory_data.py
-    extract_allen_data_pkl.py
-    gen_TGIC_allen_data.py
-    test_allen.py
+    pip install allensdk
+    ```
+
+    Then run the following scripts:
+
+    ```bash
+    ./code4paper/download_allen_observatory_data.py # download data
+    ./code4paper/extract_allen_data_pkl.py          # data preprocessing
+    ./code4paper/allen_data_causality_estimation.py
+    ./code4paper/test_allen.py
     ```

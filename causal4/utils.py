@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from matplotlib.axes import Axes
 from scipy.ndimage.filters import gaussian_filter1d
 from struct import pack, _clearcache
@@ -10,6 +11,7 @@ from multiprocessing.shared_memory import SharedMemory
 from typing import Tuple
 from .Causality import CausalityIO, run
 from joblib import Parallel, delayed
+from sklearn.cluster import KMeans
 
 
 def spk2bin(spike_train:np.ndarray, dt:float)->np.ndarray:
@@ -211,6 +213,25 @@ def STA(xdata:np.ndarray, spk_data:np.ndarray, pair:np.ndarray, data_len:int, ha
     sta /= np.sum(spk_data[:,1]==1)
     return delay,sta
 
+def kmeans_1d(X:np.ndarray, init='kmeans++', return_label:bool=False):
+    """Perform kmeans clustering on 1d data.
+
+    Args:
+        X (np.ndarray): data to cluster, 1d.
+        return_label (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        threshold (float): clustering boundary of 1d data X.
+        labels (np.ndarray, optional): kmeans label.
+    """
+    kmeans = KMeans(n_clusters=2, max_iter=1, init=init).fit(X.reshape(-1,1))
+    km_center_order = np.argsort(kmeans.cluster_centers_.flatten())
+    threshold = 0.5*(X[kmeans.labels_==km_center_order[0]].max() + X[kmeans.labels_==km_center_order[1]].min())
+    if return_label:
+        return threshold, kmeans.labels_
+    else:
+        return threshold
+
 def Gaussian(x, a, mu, sigma2):
     """Standand Gaussian template function.
 
@@ -371,6 +392,38 @@ def scan_s_process(dtype:str, s:float, pm_causal:dict,
 
 from scipy import signal
 from typing import Union
+import struct
+
+def load_spike_data(spk_file_path:str, xrange:tuple=(0,1000), verbose=True, **kwargs):
+    """plot sample raster plot given network parameters
+
+    Args:
+        spk_file_path (str): relative path of spike files
+        xrange (tuple, optional): range of xaxis. Defaults to (0,1000).
+
+    Returns:
+        spike_data: np.ndarray, (num_spikes, 2)
+    """
+    n_time = 1000
+    with open(spk_file_path, 'rb') as f:
+        data_buff = f.read(8*2*n_time)
+        data_len = int(len(data_buff)/16)
+        spk_data = np.array(struct.unpack('d'*2*data_len, data_buff)).reshape(-1,2)
+        while spk_data[-1,0] < xrange[1]:
+            data_buff = f.read(8*2*n_time)
+            data_len = int(len(data_buff)/16)
+            if data_len == 0:
+                print('reaching end of file')
+                break
+            spk_data_more = np.array(struct.unpack('d'*2*data_len, data_buff)).reshape(-1,2)
+            spk_data = np.concatenate((spk_data, spk_data_more), axis=0)
+
+    mask = (spk_data[:,0] > xrange[0]) * (spk_data[:,0] < xrange[1])
+    if verbose:
+        N = np.unique(spk_data[:,1]).shape[0]
+        print(f"mean firing rate is {spk_data.shape[0]/spk_data[-1,0]/N*1000.:.3f} Hz")
+    return spk_data[mask, :]
+
 def spk_power_spectrum(pm:dict, fs: float=1000, idx:Union[int, list]=None,
                        T_range:tuple=(0,1000)) -> np.ndarray:
     """
@@ -427,6 +480,225 @@ def spk_power_spectrum(pm:dict, fs: float=1000, idx:Union[int, list]=None,
             nperseg=binary_spk.shape[0]/2, noverlap=binary_spk.shape[0]/4)
     else:
         raise TypeError('idx must be int or list of int.')
+
+# match cell-type, connectivity, masking to causality data
+def match_features(data:pd.DataFrame, N:int, conn_file:str,
+        Ni:int=0, EI_types:np.ndarray=None, mask_file:str=None):
+    """match causality data other network features, 
+
+    Args:
+        data (pd.DataFrame): causality data.
+        N (int): number of (excitatory) neurons.
+        conn_file (str): filename of connectivity matrix, both dense and sparse matrix supported.
+        Ni (int, optional): number of inhibitory neurons, if nonzero, the total number of neuron N+Ni.
+            Defaults to 0.
+        EI_types (dict, optional): {'neuron_id':[...], 'EI_type':[...]}. Defaults to None.
+        mask_file (str, optional): filename of masking used in causality calculation. Defaults to None.
+
+    Returns:
+        data_match: DataFrame of integrated data.
+    """
+    
+    data_match = data.copy()
+    
+    # Transform causality column in data to log10-scale
+    new_columns_map = {
+        'log-TE': 'TE',
+        'log-GC': 'GC',
+        'log-MI': 'sum(MI)',
+        'log-CC': 'sum(CC2)',
+        'log-dp': 'Delta_p',
+    }
+    for key, val in new_columns_map.items():
+        data_match[key] = np.log10(np.abs(data_match[val]))
+        if key in ('log-TE', 'log-MI'):
+            data_match[key] += np.log10(2)
+
+    N = N + Ni
+
+    # match causality mask
+    if mask_file is not None:
+        mask = np.fromfile(mask_file, dtype=float).reshape(2,-1)
+        mask_pre_id, mask_post_id = mask.astype(int)
+        mask = pd.DataFrame({'pre_id':mask_pre_id, 'post_id':mask_post_id}).astype(int)
+        # Select rows in data according to mask
+        data_match = data_match.merge(mask, how='inner', on=['pre_id', 'post_id'])
+
+    # match EI types
+    if EI_types is None:
+        data_match['pre_cell_type'] = ['E' if ele else 'I' for ele in data_match['pre_id'] < N-Ni]
+        data_match['post_cell_type'] = ['E' if ele else 'I' for ele in data_match['post_id'] < N-Ni]
+    else:
+        assert isinstance(EI_types, dict), 'EI_types should be a dict!'
+        df_tmp = pd.DataFrame({'pre_id':EI_types['neuron_id'], 'pre_cell_type':EI_types['EI_type']})
+        data_match = data_match.merge(df_tmp, how='left', on='pre_id')
+        df_tmp = pd.DataFrame({'post_id':EI_types['neuron_id'], 'post_cell_type':EI_types['EI_type']})
+        data_match = data_match.merge(df_tmp, how='left', on='post_id')
+
+    # load connectivity matrix 
+    conn_raw = np.fromfile(conn_file, dtype=float)
+    conn_weight = None
+    if conn_raw.shape[0] >= N*N:
+        print('>> matching: dense connectivity matrix.')
+        conn = conn_raw[:int(N*N)].reshape(N,N).astype(bool)
+        pre_id, post_id = np.where(conn)
+
+        if conn_raw.shape[0] > N*N:
+            conn_weight = conn_raw[int(N*N):].reshape(N,N).astype(float)
+            conn_weight = conn_weight[pre_id, post_id]
+    else:
+        print('>> matching: sparse connectivity matrix.')
+        conn_raw = conn_raw.reshape(2,-1)
+        pre_id, post_id = conn_raw
+
+    conn_pairs = pd.DataFrame(
+        {'pre_id':pre_id, 'post_id':post_id, 'connection':np.ones_like(pre_id, dtype=int)})
+    # Merge conn_pairs with data
+    data_match = data_match.merge(conn_pairs, how='left', on=['pre_id', 'post_id'])
+    # Fill missing rows in 'connection' column with 0
+    data_match['connection'].fillna(0, inplace=True)
+
+    # merge connection strength if exist
+    if conn_weight is not None:
+        weight_pairs = pd.DataFrame(
+            {'pre_id':pre_id, 'post_id':post_id, 'weight':conn_weight})
+        data_match = data_match.merge(weight_pairs, how='left', on=['pre_id', 'post_id'])
+        data_match['weight'].fillna(0, inplace=True)
+
+    # drop inf and nan rows, mainly self-connections
+    data_match.replace([np.inf, -np.inf], np.nan, inplace=True)
+    data_match.dropna(inplace=True)
+    return data_match
+
+from sklearn.metrics import roc_auc_score, roc_curve
+def reconstruction_analysis(data:pd.DataFrame,
+        hist_range:tuple=None, nbins:int=100, fit_p0 = None, EI_mask:str=None, weight_hist_type:str='linear'):
+    fig_data_keys = ['roc_gt', 'roc_blind', 
+        'hist', 'hist_conn', 'hist_disconn', 'hist_error', 'edges', 
+        'log_norm_fit_pval', 'th_gauss', 'th_kmeans', 
+        'acc_gauss', 'acc_kmeans', 'ppv_gauss', 'ppv_kmeans',
+        'auc_gauss', 'auc_kmeans',
+    ]
+    data_fig = {key: {} for key in fig_data_keys}
+    data_recon = data.copy()
+    
+    if EI_mask is not None:
+        if EI_mask == 'E':
+            data_recon = data_recon[data_recon['pre_cell_type'].eq('E')]
+        elif EI_mask == 'I':
+            data_recon = data_recon[data_recon['pre_cell_type'].eq('E')]
+        else:
+            raise ValueError('EI_mask error!')
+
+    # merge connection strength if exist
+    if 'weight' in data_recon:
+        if weight_hist_type == 'log':
+            counts, bins = np.histogram(
+                np.log10(data_recon[data_recon['connection'].eq(1)]['weight']), bins=40)
+        elif weight_hist_type == 'linear':
+            counts, bins = np.histogram(
+                data_recon[data_recon['connection'].eq(1)]['weight'], bins=40)
+        else:
+            raise ValueError('weight_hist_type error!')
+        for key in data_fig.keys():
+            if key == 'hist':
+                data_fig[key]['conn']  = counts.copy()
+            elif key == 'edges':
+                data_fig[key]['conn'] = bins[:-1].copy()
+            else:
+                data_fig[key]['conn'] = np.nan
+
+    # drop inf and nan rows, mainly self-connections
+    ratio = data_recon['connection'].mean()
+
+    if hist_range is None:
+        # determine histogram value range
+        hist_range = (np.floor(data_recon[['log-TE', 'log-GC', 'log-MI', 'log-CC']].min().min()),
+                      np.ceil(data_recon[['log-TE', 'log-GC', 'log-MI', 'log-CC']].max()).max())
+
+    counts, bins = np.histogram(data_recon['log-dp'], bins=100, density=True)
+    for key in data_fig.keys():
+        if key == 'hist':
+            data_fig[key]['dp']  = counts.copy()
+        elif key == 'edges':
+            data_fig[key]['dp'] = bins[:-1].copy()
+        else:
+            data_fig[key]['dp'] = np.nan
+
+    for key in ('CC', 'MI', 'GC', 'TE'):
+        counts_total = np.zeros(nbins)
+        for i, hist_key in enumerate(('hist_disconn', 'hist_conn')):
+            buffer = data_recon[data_recon['connection'].eq(i)][f'log-{key}']
+            counts, bins = np.histogram(buffer, bins=nbins, range=hist_range, density=True)
+            counts *= np.abs(1-i-ratio)
+            counts_total += counts.copy()
+            data_fig[hist_key][key] = counts.copy()
+        data_fig['edges'][key] = bins[:-1].copy()
+        data_fig['hist'][key] = counts_total.copy()
+
+        # KMeans clustering causal values
+        if fit_p0 is None:
+            disconn_peak_id = data_fig['hist_disconn'][key].argmax()
+            conn_peak_id = data_fig['hist_conn'][key].argmax()
+            fit_p0 = [0.5, 0.5, bins[disconn_peak_id], bins[conn_peak_id], 1, 1]
+        try:
+            th_kmeans = kmeans_1d(data_recon[f'log-{key}'].to_numpy(), np.array([[fit_p0[2]],[fit_p0[3]]]))
+            data_fig['th_kmeans'][key] = th_kmeans
+            data_recon[f'recon-kmeans-{key}'] = (data_recon[f'log-{key}'] >= th_kmeans).astype(int)
+            error_mask = np.logical_xor(data_recon['connection'], data_recon[f'recon-kmeans-{key}'])
+            data_fig['acc_kmeans'][key] = 1-error_mask.sum()/len(error_mask)
+            data_fig['ppv_kmeans'][key] = (data_recon['connection']*data_recon[f'recon-kmeans-{key}']).sum()/data_recon[f'recon-kmeans-{key}'].sum()
+        except:
+            print("Warning: KMeans clustering failed!")
+            data_fig['th_kmeans'][key] = np.nan
+            data_fig['acc_kmeans'][key] = np.nan
+            data_fig['ppv_kmeans'][key] = np.nan
+
+        # Double Gaussian Anaylsis
+        try:
+            popt, th_gauss, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
+            data_fig['th_gauss'][key] = th_gauss
+            data_fig['log_norm_fit_pval'][key] = popt
+            data_fig['roc_blind'][key] = np.vstack((fpr, tpr))
+        except:
+            print("Warning: Double Gaussian Anaylsis failed!")
+            popt = None
+            data_fig['th_gauss'][key] = np.nan
+            data_fig['log_norm_fit_pval'][key] = np.nan
+            data_fig['roc_blind'][key] = np.nan
+        if popt is not None:
+            # plot double Gaussian based ROC
+            auc = -np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2)
+            data_fig['auc_gauss'][key] = auc
+
+            # calculate reconstruction accuracy
+            data_recon[f'recon-gauss-{key}'] = (data_recon[f'log-{key}'] >= th_gauss).astype(int)
+            error_mask = np.logical_xor(data_recon['connection'], data_recon[f'recon-gauss-{key}'])
+            data_fig['acc_gauss'][key] = 1-error_mask.sum()/len(error_mask)
+            data_fig['ppv_gauss'][key] = (data_recon['connection']*data_recon[f'recon-gauss-{key}']).sum()/data_recon[f'recon-gauss-{key}'].sum()
+            counts_error, _ = np.histogram(data_recon[f'log-{key}'][error_mask], bins=nbins, range=hist_range, density=True)
+            data_fig['hist_error'][key] = counts_error.copy()
+        else:
+            data_fig['acc_gauss'][key] = np.nan
+            data_fig['ppv_gauss'][key] = np.nan
+            data_fig['hist_error'][key] = np.nan
+
+        fpr, tpr, _ = roc_curve(data_recon['connection'], data_recon[f'log-{key}'])
+        data_fig['roc_gt'][key] = np.vstack((fpr, tpr))
+        try:
+            auc = roc_auc_score(data_recon['connection'], data_recon[f'log-{key}'])
+        except ValueError:
+            print("Warning: only one class, AUC calculation error!")
+            auc = np.nan
+        data_fig['auc_kmeans'][key] = auc
+
+    # Reorder columns in data
+    new_columns = ['pre_id', 'post_id', 'connection', 'recon-kmeans-TE', 'recon-gauss-TE', 'log-TE', 'log-GC', 'log-MI', 'log-CC', 'log-dp']
+    other_columns = [col for col in data_recon.columns if col not in new_columns]
+    data_recon = data_recon[new_columns + other_columns]
+        
+    return data_recon, pd.DataFrame(data_fig)
+
 
 if __name__ == '__main__':
     pass

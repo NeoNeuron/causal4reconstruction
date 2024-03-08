@@ -161,9 +161,20 @@ class CausalityEstimator(object):
         self.index_map['MI'] = order[1]+9
         self.index_map['CC'] = order[1]+10
     
-    def get_optimal_delay(self, delay_range:list) -> int:
+    def get_optimal_delay(self, delay_range:list, dry_run:int=False) -> int:
         dfs = []
         print('>> start searching the optimal delay ...')
+        if dry_run:
+            print('Dry run, no new estimation.')
+            missing = []
+            for delay in tqdm(delay_range):
+                if not self._check_exist(delay):
+                    missing.append(delay)
+            if len(missing) == 0:
+                print('All files exist.')
+            else:
+                print(f"Delay not estimated: {missing}")
+                return None
         for delay in tqdm(delay_range):
             self._run_estimation(delay, regen=False, verbose=False)
             df = self.fetch_data(delay, new_run=True)
@@ -420,67 +431,6 @@ class CausalityIO(object):
             else:
                 return dat[:, self.causal_map[causal_type]].reshape(self.N, self.N)
 
-class CausalityLoader(CausalityIO):
-    """ ! Original data structure
-        dat[0]  : TE value
-        dat[1]  :	x index 
-        dat[2]  :	y index 
-        p = p(x_{n+1}, x-, y-)
-        dat[3]  : p(x_{n+1}=1)
-        dat[4]  : p(y_{n}=1)
-        dat[5]  : p0 = p(0,0,0) + p(1,0,0)
-        dat[6]  : dpl(or more) = p(x=1|x-, y-_l = 1) - p(x=1|x-, y-_l = 0)
-        dat[7]  : \Delta p_m := p(x = 1, y- = 1)/p(x = 1)/p(y- = 1) - 1
-        dat[7+order]  : TE(l=5)
-        dat[8+order]  : GC
-        dat[9+order] : \sum{TDMI}
-        dat[10+order] : \sum{NCC^2}
-        dat[11+order] : approx for 2*\sum{TDMI}
-        y-->x.  Total N*N*(k+12).
-    """
-
-    def __init__(self, dtype, N=2, order=(1,1), bin=0.5, delay=0, 
-                 T=None, **kwargs) -> None:
-
-        self.dtype=dtype
-        if isinstance(N, tuple):
-            assert len(N) == 2
-            self.N = N[0]+N[1]
-        else:
-            self.N=N
-        
-        self.folder = kwargs['path_output'] if 'path_output' in kwargs else 'data/'
-        self.T = T
-        self._order=order
-        self.bin=bin
-        self.delay=delay
-        self.causal_map = dict(
-            TE = 0, 
-            GC = self.order[1]+8, 
-            MI = self.order[1]+9, 
-            CC = self.order[1]+10,
-            dp = 6,
-            Delta_p = self.order[1]+6,
-            px = 3,
-            py = 4,
-        )
-
-    def get_fname(self, spk_fname:str, **kwargs):
-        pm_buff = dict(
-            dtype=self.dtype, 
-            folder=self.folder, 
-            T=self.T,
-            order=self.order,
-            bin=self.bin,
-            delay=self.delay,
-            # properties about the name of spike train data file, 
-            #  which will be overrided if spk_fname is not None.
-        )
-        for key in kwargs:
-            if key in pm_buff:
-                pm_buff[key] = kwargs[key]
-        return get_fname_new(spk_fname=spk_fname, **pm_buff)
-
 class CausalityAPI(CausalityIO):
     """
     dat[0]  : TE value
@@ -656,9 +606,6 @@ def run(verbose=False, shuffle=False, force_regen=False, **kwargs) -> str:
                 cml_options += ' ' + flag_map[key]%kwargs[key]
             else:
                 cml_options += ' ' + flag_map[key]
-    # for section in self.config.sections():
-    #     for option in list(self.config[section]):
-    #         cml_options += '--'+section+'.'+option + ' ' + (self.config[section][option]) + ' '
     cml_options += ' -v'
     if shuffle:
         cml_options += ' -s'
@@ -681,149 +628,4 @@ def run(verbose=False, shuffle=False, force_regen=False, **kwargs) -> str:
         if verbose:
             print(f'File {output_file:s} exists.')
     return output_file
-# %%
-from multiprocessing import Pool
-# from ray.util.multiprocessing import Pool
-def scan_pm_single(pm:str, val_range:np.ndarray, verbose=False, mp=None, **kwargs):
-    """ Scan causality based on the single data file.
-        Call C/C++ interface to calculate causal values.
-        Parameters: delay, order, dt, ; 
-
-    Args:
-        pm (str): key name of parameter to be scanned.
-        val_range (np.ndarray): array of val_range value to be scanned.
-        verbose (bool, optional): Defaults to False.
-        mp (int, optional): number of processes, None for single process. Defaults to None.
-
-    Returns:
-        list: list of results from subprocess.run()
-    """
-    if pm in kwargs:
-        del kwargs[pm]
-    if mp is None:
-        result = [run(verbose, **{pm:val}, **kwargs) for val in val_range]
-    else:
-        if 'n_thread' in kwargs:
-            n_cpu = kwargs['n_thread']
-        else:
-            n_cpu = 1
-        print(f'n_cpu: {n_cpu}')
-        p = Pool(ray_address="auto", processes=mp,
-                 ray_remote_args={"num_cpus": n_cpu})
-        result = [
-            p.apply_async(
-            func = run, args=(verbose,), kwargs = dict(**{pm:val},**kwargs),
-            ) for val in val_range
-        ]
-        p.close()
-        p.join()
-    return result
-
-def scan_delay(force_regen:bool, pm_causal:dict, delay:np.ndarray, mp:int=30, dry_run=False):
-    """scan over delay values for specific setting of systems.
-        spk_fname mode used in get_fname system, and pm_causal['fname'] are used.
-
-    Args:
-        force_regen (bool): whether regenerate all data forcely.
-        pm_causal (dict): dict of parametes of causal measures.
-        delay (np.ndarray): array of delays to be scanned.
-        mp (int, optional): number of processes used for calculation. Defaults to 30.
-    """
-
-    delay_not_gen = []
-    if 'delay' in pm_causal:
-        pm = pm_causal.copy()
-        del pm['delay']
-    else:
-        pm = pm_causal
-    spk_fname = pm['fname']
-    dtype = pm['path_input'].split('/')[-3]
-    N = pm['Ne']+pm['Ni']
-    midterm = 'data/'
-    if pm['Ne']*pm['Ni'] > 0:
-        midterm += f"EI/N={N:d}/"
-    elif pm['Ne'] > 0:
-        midterm += f"EE/N={N:d}/"
-    elif pm['Ni'] > 0:
-        midterm += f"II/N={N:d}/"
-    else:
-        raise ValueError('No neuron!')
-    for val in delay:
-        fname_buff = get_fname(dtype, midterm, spk_fname=spk_fname, delay=val, **pm)
-        if not os.path.isfile(fname_buff):
-            # print('[WARNING]: ' + fname_buff + ' not exist.')
-            delay_not_gen.append(val)
-    delay_not_gen = np.asarray(delay_not_gen)
-    ##%%
-    # run cal_causality to calculate causalities
-    if force_regen:
-        if dry_run:
-            print('Dry run, no calculation.')
-            print('Delay', delay, 'needs to be calculated.')
-        else:
-            _ = scan_pm_single('delay', delay, True, mp=mp, **pm)
-    else:
-        if dry_run:
-            print('Dry run, no calculation.')
-            print('Delay', delay_not_gen, 'needs to be calculated.')
-        else:
-            if delay_not_gen.shape[0] > 0:
-                _ = scan_pm_single('delay', delay_not_gen, True, mp=mp, **pm)
-
-# %%
-def scan_pm_multi(pm:str, val_range:np.ndarray, verbose=False, mp=None, fname_kws={}, **kwargs):
-    """ Scan causality based on the single data file.
-        Call C/C++ interface to calculate causal values.
-        Parameters: p, s, f, u; 
-
-    Args:
-        pm (str): key name of parameter to be scanned.
-        val_range (np.ndarray): array of val_range value to be scanned.
-        verbose (bool, optional): Defaults to False.
-        mp (int, optional): number of processes, None for single process. Defaults to None.
-        kw
-
-    Returns:
-        list: list of results from subprocess.run()
-    """
-    #TODO: check kwargs works or not, by varying u=0.1
-    def cat_name(dtype='HH', p=0.25, s=0.02, f=0.1, u=0.1):
-        if s>=0.001:
-            return f'{dtype:s}p={p:.2f}s={s:.3f}f={f:.3f}u={u:.3f}'
-        else:
-            return f'{dtype:s}p={p:.2f}s={s:.5f}f={f:.3f}u={u:.3f}'
-    if 'fname' in kwargs:
-        del kwargs['fname']
-    if mp is None:
-        result = [run(verbose, fname=cat_name(**{pm:val}, **fname_kws), **kwargs) for val in val_range]
-    else:
-        p = Pool(mp)
-        result = [
-            p.apply_async(
-            func = run, args=(verbose,), 
-            kwds = dict(fname=cat_name(**{pm:val}, **fname_kws), **kwargs,),
-            ) for val in val_range
-        ]
-        p.close()
-        p.join()
-    return result
-
-def scan_pm_multi3(pm:str, val_range:np.ndarray, verbose=False):
-    """ Scan causality based on the single data file.
-        Call C/C++ interface to calculate causal values.
-        Parameters: s1, s2, f, u; 
-
-    Args:
-        pm (str): key name of parameter to be scanned.
-        val_range (np.ndarray): array of val_range value to be scanned.
-        verbose (bool, optional): Defaults to False.
-
-    Returns:
-        list: list of results from subprocess.run()
-    """
-    def cat_name(dtype='HH', p=0.25, s1=0.02, s2=0.02, f=0.1, u=0.1):
-        return f'{dtype:s}p={p:.2f}s={s1:.3f}s2={s2:.3f}f={f:.3f}u={u:.3f}'
-
-    result = [run(verbose, NE=3, fname=cat_name(pm=val)) for val in val_range]
-    return result
 # %%
