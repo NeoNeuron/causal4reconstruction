@@ -35,9 +35,6 @@ with open(data_path/'HH100_conn_types_data_fig.pkl', 'rb') as f:
     bins = conn['edges']
     counts = conn['hist']
 
-
-# data=loadmat(path+'FitDensity_HH_100P30nu0.09', squeeze_me=True)
-
 ax1[0].plot(edges,nte,color=(65/255,65/255,194/255),lw=2,label='simulate')
 ax1[0].plot(edges,fte,color='r',lw=2,label='fit')
 ax1[0].set_xlabel('TE value')
@@ -96,7 +93,7 @@ gs = fig.add_gridspec(2,2, wspace=0.48, hspace=0.35, left=0.29, right=0.70, bott
 ax2 = np.array([fig.add_subplot(gsi) for gsi in gs]).reshape(2,2)
 
 for axi, fname in zip(ax2.T.flatten(), stimulus_names):
-	roc=data[fname]['roc']
+	roc=data[fname]['roc_blind']
 
 	##roc
 	for key in ('CC', 'MI', 'GC', 'TE'):
@@ -115,7 +112,7 @@ for axi, fname in zip(ax2.T.flatten(), stimulus_names):
 	# axins.set_facecolor(None)
 
 	for key in ('CC', 'MI', 'GC', 'TE'):
-		axins.plot(data['edges'], hist[key], **line_rc[key])
+		axins.plot(data[fname]['edges'][key], hist[key], **line_rc[key])
 	axins.set_xlabel('causal value',fontsize=12)
 	axins.set_ylabel('probability density',fontsize=12)
 	axins.set_yticks(np.arange(0,0.7,0.2))

@@ -3,15 +3,18 @@ import pickle
 import h5py
 
 import numpy as np
+import pandas as pd
 from scipy.ndimage.filters import gaussian_filter1d
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import seaborn as sns
 plt.rcParams['font.size']=16
 plt.rcParams['axes.labelsize']=16
+plt.rcParams['axes.spines.top'] = False
+plt.rcParams['axes.spines.right'] = False
 
 from causal4.Causality import CausalityEstimator
-from causal4.utils import Gaussian, Double_Gaussian, Double_Gaussian_Analysis, match_features
+from causal4.utils import Gaussian, match_features, reconstruction_analysis
 from causal4.figrc import line_rc, c_inv, fig_path, data_path
 
 import warnings
@@ -100,62 +103,44 @@ chosen_unit_set = np.nonzero(unit_rate_mask_union)[0]
 fig, ax = plt.subplots(2,2, figsize=(16,14))
 causal_values = {key: np.zeros((new_N*new_N-new_N, len(stimulus_names_plot))) for key in ('TE', 'GC', 'MI', 'CC')}
 th_conditions = {stimuli: {} for stimuli in stimulus_names_plot}
-allen_data = {key: {'roc':{}, 'hist': {}, 'hist_inconsist': {}} for key in stimulus_names_plot}
+allen_data = {}
+data_recon_list = []
 log_norm_fit_pval = {}
 
-new_columns_map = {
-    'log-TE': 'TE',
-    'log-GC': 'GC',
-    'log-MI': 'sum(MI)',
-    'log-CC': 'sum(CC2)',
-    'log-dp': 'Delta_p',
-}
 for i, axi in enumerate(ax.flatten()[:len(stimulus_names_plot)]):
-    axi.spines['top'].set_visible(False)
-    axi.spines['right'].set_visible(False)
+    # fetch causality data
+    estimator.spk_fname = fnaming(stimulus_names_plot[i], gap_vals[i])
+    estimator.T = hf[fnaming(stimulus_names_plot[i])].attrs['T'] + TGIC_cfg['suffix']*1e3
+    data = estimator.fetch_data()
+    data = data[(data['pre_id'].isin(chosen_unit_set)) & (data['post_id'].isin(chosen_unit_set))].copy()
+    data_matched = match_features(data, N=n_unit)
+    vrange=(-8,-2)
+    data_recon, data_fig = reconstruction_analysis(data_matched, nbins=100, hist_range=vrange, fit_p0=[0.5,0.5,-5,-4,1,1])
+    data_fig = data_fig.dropna(axis=1, how='all')
+    allen_data[stimulus_names_plot[i]] = data_fig.copy()
+    data_recon['stimulus'] = stimulus_names_plot[i]
+    data_recon_list.append(data_recon.copy())
+
     ax_hist = inset_axes(axi, width="100%", height="100%",
                     bbox_to_anchor=(.35, .35, .50, .50),
                     bbox_transform=axi.transAxes, loc='center', axes_kwargs={'facecolor':[1,1,1,0]})
-    ax_hist.spines['top'].set_visible(False)
-    ax_hist.spines['right'].set_visible(False)
-    estimator.spk_fname = fnaming(stimulus_names_plot[i], gap_vals[i])
-    estimator.T = hf[fnaming(stimulus_names_plot[i])].attrs['T'] + TGIC_cfg['suffix']*1e3
-    # fetch data and transform causality value into log-scale
-    data = estimator.fetch_data()
-    for key, val in new_columns_map.items():
-        data[key] = np.log10(np.abs(data[val]))
-        if key in ('log-TE', 'log-MI'):
-            data[key] += np.log10(2)
-    data.replace([np.inf, -np.inf], np.nan, inplace=True)
-    data.dropna(inplace=True)
 
-    data = data[(data['pre_id'].isin(chosen_unit_set)) & (data['post_id'].isin(chosen_unit_set))].copy()
     log_norm_fit_pval[stimulus_names_plot[i]] = {}
     for key in ('CC', 'MI', 'GC', 'TE'):
-        data_buff = data['log-'+key].to_numpy()
-        causal_values[key][:, i] = data_buff
-        vrange=(-8,-2)
-        counts, bins = np.histogram(data_buff, bins=100, range=vrange, density=True)
-        allen_data[stimulus_names_plot[i]]['hist'][key] = counts.copy()
-        # counts, bins = np.histogram(log_cau[~np.isinf(log_cau)], bins=200, range=(-8,-2), density=True)
-        popt, threshold, fpr, tpr = Double_Gaussian_Analysis(counts, bins, p0=[0.5, 0.5, -5, -4, 1, 1])
-        # ax_hist.plot(bins[:-1], Double_Gaussian(bins[:-1], *popt), lw=4, ls=':', color=line_rc[key]['color'], )
-        # ax_hist.plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), '-o', lw=2, ms=1, color=line_rc[key]['color'], )
-        # ax_hist.plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), '-d', lw=2, ms=1, color=line_rc[key]['color'], )
-        ax_hist.plot(bins[:-1], counts, **line_rc[key])
-        ax_hist.axvline(threshold, color=line_rc[key]['color'], ls='--')
+        causal_values[key][:, i] = data_recon['log-'+key].to_numpy()
+        ax_hist.plot(data_fig['edges'][key], data_fig['hist'][key], **line_rc[key])
+        ax_hist.axvline(data_fig['th_gauss'][key], color=line_rc[key]['color'], ls='--')
+        fpr, tpr = data_fig['roc_blind'][key]
         axi.plot(fpr, tpr, color=line_rc[key]['color'], lw=line_rc[key]['lw']*2, label=line_rc[key]['label'])[0].set_clip_on(False)
 
-        log_norm_fit_pval[stimulus_names_plot[i]][key] = popt
-        th_conditions[stimulus_names_plot[i]][key] = threshold
-        print(f"{key:s}: {-np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2):.3f}", end='\t')
-        allen_data[stimulus_names_plot[i]]['roc'][key] = np.vstack((fpr, tpr))
+        log_norm_fit_pval[stimulus_names_plot[i]][key] = data_fig['log_norm_fit_pval'][key].copy()
+        th_conditions[stimulus_names_plot[i]][key] = data_fig['th_gauss'][key]
+        print(f"{key:s}: {data_fig['auc_gauss'][key]:.3f}", end='\t')
     ax_hist.set_xlim(*vrange)
     xticks = np.arange(-8, -1, 2)
     ax_hist.set_xticks(xticks)
     ax_hist.set_xticklabels([r"$10^{%.0f}$"%val for val in ax_hist.get_xticks()])
     print('')
-    # ax_hist.set_title(stimulus_names_plot[i].replace('_', ' '))
     ax_hist.set_ylim(0)
     axi.legend(loc='upper right')
     if '-' in stimulus_names_plot[i]:
@@ -168,18 +153,14 @@ for i, axi in enumerate(ax.flatten()[:len(stimulus_names_plot)]):
 
     axins.imshow(arr_image)
     axins.axis('off')
-    ax_hist.set_ylabel('Probability Density')
-    ax_hist.set_xlabel('Causal value')
+    ax_hist.set_ylabel('probability density')
+    ax_hist.set_xlabel('causal value')
     axi.set_xlim(0,1)
     axi.set_ylim(0,1)
 [axi.set_ylabel('True Positive Rate', fontsize=30) for axi in ax[:,0]]
 [axi.set_xlabel('False Positive Rate', fontsize=30) for axi in ax[-1,:]]
-# ax[0].set_ylabel('Probability Density')
-# [ax[i].set_xlabel('Causal value') for i in range(3)]
 
-allen_data['edges'] = bins[:-1].copy()
-allen_data['log_norm_fit_pval'] = log_norm_fit_pval
-allen_data['opt_th'] = th_conditions
+data_recon = pd.concat(data_recon_list)
 
 plt.tight_layout()
 plt.savefig(fig_path/f"histogram_of_TE_allen-{TGIC_prefix:s}-{long_fnaming('all'):s}{fig_sfx:s}.pdf")
@@ -188,75 +169,65 @@ plt.savefig(fig_path/f"histogram_of_TE_allen-{TGIC_prefix:s}-{long_fnaming('all'
 #! ====================
 #! Draw histogram of causal values for each stimuli filtered with inconsistent masks
 #! ====================
-inconsist_range = (1,3)
-inconsist_mask = {}
+tmp = pd.DataFrame(
+    data_recon.groupby(['pre_id', 'post_id']).sum()[
+        ['recon-gauss-CC', 'recon-gauss-MI', 'recon-gauss-GC', 'recon-gauss-TE']])
 for key in ('CC', 'MI', 'GC', 'TE'):
-    ths = np.array([th_conditions[stimuli][key] for stimuli in stimulus_names_plot])
-    # if key in ('TE', 'MI'):
-    #     ths -= np.log10(2)
-    bin_recon_buff = (causal_values[key]>=ths).astype(int).sum(1)
-    inconsist_mask[key] = (bin_recon_buff>inconsist_range[0])*(bin_recon_buff<inconsist_range[1])
-    print(f"{key:s}: {np.sum(inconsist_mask[key])/new_N/(new_N-1)*100:>5.2f} %")
+    print(f"{key:s}: {tmp['recon-gauss-'+key].eq(2).mean()*100:>5.2f} %")
 
-
+inconsist_hist = {key:{} for key in stimulus_names_plot}
 for key in ('CC', 'MI', 'GC', 'TE'):
+    mask = tmp['recon-gauss-'+key].eq(2)
+    selected_data = pd.merge(tmp[mask], data_recon, how='left', left_index=True, right_on=['pre_id', 'post_id'])
     fig, ax = plt.subplots(2,2, figsize=(16,14))
-    ax_hist.spines['top'].set_visible(False)
-    ax_hist.spines['right'].set_visible(False)
-    for i, ax_hist in enumerate(ax.flatten()[:len(stimulus_names_plot)]):
-        log_cau = causal_values[key][:, i]
-        # if key in ('TE', 'MI'):
-        #     log_cau += np.log10(2)
+    for stim, axi in zip(stimulus_names_plot, ax.flatten()):
         vrange=(-8,-2)
-        counts, bins = np.histogram(log_cau[inconsist_mask[key]], bins=100, range=vrange, density=True)
-        pop_ratio = np.sum(inconsist_mask[key])/len(log_cau)
-        ax_hist.plot(bins[:-1], gaussian_filter1d(counts*pop_ratio, 1), lw=6, color='#00C2A0', label=line_rc[key]['label'], zorder=1)
-        allen_data[stimulus_names_plot[i]]['hist_inconsist'][key] = counts*pop_ratio
-        # counts, bins = np.histogram(log_cau[~np.isinf(log_cau)], bins=200, range=(-8,-2), density=True)
-        # ax_hist.plot(bins[:-1], Double_Gaussian(bins[:-1], *popt), lw=4, ls=':', color=line_rc[key]['color'], )
-        popt = log_norm_fit_pval[stimulus_names_plot[i]][key]
-        ax_hist.plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), lw=4, alpha=1.0, color=line_rc[key]['color'],zorder=0)
-        ax_hist.plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), lw=4, alpha=1.0, color=c_inv[line_rc[key]['color']],zorder=0)
+        counts, bins = np.histogram(selected_data[selected_data['stimulus'].eq(stim)]['log-'+key], bins=100, range=vrange, density=True)
+        pop_ratio = tmp['recon-gauss-'+key].eq(2).mean()
+        axi.plot(bins[:-1], gaussian_filter1d(counts*pop_ratio, 1), lw=6, color='#00C2A0', label=line_rc[key]['label'], zorder=1)
+        inconsist_hist[stim][key] = counts*pop_ratio,
+        popt = allen_data[stim]['log_norm_fit_pval'][key]
+        axi.plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), lw=4, alpha=1.0, color=line_rc[key]['color'],zorder=0)
+        axi.plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), lw=4, alpha=1.0, color=c_inv[line_rc[key]['color']],zorder=0)
         # calculate threshold
-        ax_hist.axvline(th_conditions[stimulus_names_plot[i]][key], color='k', ls='-')
+        axi.axvline(allen_data[stim]['th_gauss'][key], color='k', ls='-')
 
-        ax_hist.set_xlim(*vrange)
+        axi.set_xlim(*vrange)
         xticks = np.arange(-8, -1, 2)
-        ax_hist.set_xticks(xticks)
-        ax_hist.set_xticklabels([r"$10^{%.0f}$"%val for val in ax_hist.get_xticks()])
-        # ax_hist.set_title(stimulus_names_plot[i].replace('_', ' '))
-        ax_hist.set_ylim(0)
-        axi.legend(loc='upper right')
-        if '-' in stimulus_names_plot[i]:
-            arr_image = plt.imread('../'+stimulus_names_plot[i].split('-')[0]+'.png', format='png')
+        axi.set_xticks(xticks)
+        axi.set_xticklabels([r"$10^{%.0f}$"%val for val in axi.get_xticks()])
+        axi.set_ylim(0)
+        if '-' in stim:
+            arr_image = plt.imread('../'+stim.split('-')[0]+'.png', format='png')
         else:
-            arr_image = plt.imread('../'+stimulus_names_plot[i]+'.png', format='png')
-        axins = inset_axes(ax_hist, width="100%", height="100%",
+            arr_image = plt.imread('../'+stim+'.png', format='png')
+        axins = inset_axes(axi, width="100%", height="100%",
                         bbox_to_anchor=(.05, .75, .23, .23),
-                        bbox_transform=ax_hist.transAxes, loc='center')
+                        bbox_transform=axi.transAxes, loc='center')
 
         axins.imshow(arr_image)
         axins.axis('off')
-        axi.set_xlim(0,1)
-        axi.set_ylim(0,1)
     [axi.set_ylabel('probability density', fontsize=30) for axi in ax[:,0]]
     [axi.set_xlabel(key, fontsize=30) for axi in ax[-1,:]];
 
     plt.tight_layout()
     plt.savefig(fig_path/f"histogram_of_{key:s}_allen-{TGIC_prefix:s}-{long_fnaming('all'):s}{fig_sfx:s}_fitted13.pdf")
 
+for key in allen_data.keys():
+    allen_data[key] = allen_data[key].merge(
+        pd.DataFrame(inconsist_hist[key], index=['hist_inconsist']).T,
+        left_index=True, right_index=True, how='left')
 #%%
 #! Draw the heatmap of correlation coefficient matrix
 #! ----
 allen_data['consistency']={}
-allen_data['consistency_bin']={}
-adj_recon = {}
+allen_data['consistency_binary']={}
 for idx, key in enumerate(('CC', 'MI', 'GC', 'TE')):
-    data = np.corrcoef(causal_values[key], rowvar=False)
+    tmp = data_recon[['stimulus', 'pre_id', 'post_id', 'log-'+key, 'recon-gauss-'+key]]
+    tmp = tmp.sort_values(by=['stimulus', 'pre_id', 'post_id'])
+    data = np.corrcoef(tmp['log-'+key].to_numpy().reshape(4,-1))
     allen_data['consistency'][key]=data
-    ths = np.array([th_conditions[stimuli][key] for stimuli in stimulus_names_plot])
-    adj_recon[key] = (causal_values[key]>=ths)
-    allen_data['consistency_bin'][key]=np.corrcoef(adj_recon[key].astype(float), rowvar=False)
+    allen_data['consistency_binary'][key]=np.corrcoef(tmp['recon-gauss-'+key].to_numpy().reshape(4,-1))
     mask = np.triu(np.ones_like(data, dtype=bool),k=1)
     fig, g = plt.subplots(1,1, figsize=(10,10), dpi=200, 
         gridspec_kw=dict(bottom=0.2, left=0.2, top=0.95, right=0.95))
@@ -300,7 +271,7 @@ for idx, key in enumerate(('CC', 'MI', 'GC', 'TE')):
         axins.imshow(arr_image)
         axins.axis('off')
 
-    # plt.savefig(fig_path/f"allen_recon_rsa4_{key:s}-{TGIC_prefix:s}-{long_fnaming('all'):s}_annot{fig_sfx:s}.pdf")
+    plt.savefig(fig_path/f"allen_recon_rsa4_{key:s}-{TGIC_prefix:s}-{long_fnaming('all'):s}_annot{fig_sfx:s}.pdf")
     print(f"Minimum coincidence rate : {data.min():6.3f}")
     print(f"Maximum coincidence rate : {np.sort(np.unique(data))[-2]:6.3f}")
     print(data)
@@ -311,25 +282,12 @@ for idx, key in enumerate(('CC', 'MI', 'GC', 'TE')):
 #! ============================================================
 N = n_unit
 new_N = int(np.sum(unit_rate_mask_union))
-fig, ax = plt.subplots(2,2, figsize=(16,14))
+fig, ax = plt.subplots(2,2, figsize=(10,8))
 for i, axi in enumerate(ax.flatten()[:len(stimulus_names_plot)]):
-    # for var, label in zip(('Delta_p', 'dp'), (r'$\Delta p_m$', r'$\delta p$')):
-    for var, label in zip(('Delta_p',), (r'$\Delta p_m$',)):
-        estimator.spk_fname = fnaming(stimulus_names_plot[i], gap_vals[i])
-        estimator.T = hf[fnaming(stimulus_names_plot[i])].attrs['T'] + TGIC_cfg['suffix']*1e3
-        # fetch data and transform causality value into log-scale
-        data = estimator.fetch_data()
-        data['log-dp'] = np.log10(np.abs(data['Delta_p']))
-        data.replace([np.inf, -np.inf], np.nan, inplace=True)
-        data.dropna(inplace=True)
-
-        data = data[(data['pre_id'].isin(chosen_unit_set)) & (data['post_id'].isin(chosen_unit_set))].copy()
-        counts, bins = np.histogram(data['log-dp'], bins=100, density=True, range=(-2,1))
-        allen_data[stimulus_names_plot[i]][var+'_hist'] = {}
-        allen_data[stimulus_names_plot[i]][var+'_hist']['counts'] = counts.copy()
-        allen_data[stimulus_names_plot[i]][var+'_hist']['edges'] = bins[:-1].copy()
-        axi.plot(bins[:-1], counts, label=label,lw=4)
-        axi.axvline(0, ls=':', color='r')
+    bins = allen_data[stimulus_names_plot[i]]['edges']['dp']
+    counts = allen_data[stimulus_names_plot[i]]['hist']['dp']
+    axi.plot(bins, counts, label=r'$\Delta_p$', lw=4)
+    axi.axvline(0, ls=':', color='r')
     axi.set_ylim(0)
     axi.set_xlim(-2,1)
     xticks = np.array([-2,-1,0,1])
@@ -346,19 +304,14 @@ for i, axi in enumerate(ax.flatten()[:len(stimulus_names_plot)]):
 
     axins.imshow(arr_image)
     axins.axis('off')
-[axi.set_xlabel(r'$\Delta p_m$ or $\delta_p$ values', fontsize=30) for axi in ax[-1,:]]
-[axi.set_ylabel('probability density', fontsize=30) for axi in ax[:,0]]
+[axi.set_xlabel(r'$|\Delta p_m|$ values', fontsize=30) for axi in ax[-1,:]]
+[axi.set_ylabel('probability density', fontsize=24) for axi in ax[:,0]]
 plt.tight_layout()
 plt.savefig(fig_path/f"histogram_of_dp_Delta_p-{TGIC_prefix:s}-{long_fnaming('all'):s}_allen{fig_sfx:s}.pdf")
 
 with open(data_path/'allen_data.pkl', 'wb') as f:
     pickle.dump(allen_data, f)
 
-#%%
-# dp = cau.load_from_single(long_fnaming(stimulus_names[0]), 'dp')[unit_rate_mask_union,:][:,unit_rate_mask_union]
-# Dp = cau.load_from_single(long_fnaming(stimulus_names[0]), 'Delta_p')[unit_rate_mask_union,:][:,unit_rate_mask_union]
-# px = cau.load_from_single(long_fnaming(stimulus_names[0]), 'px')[unit_rate_mask_union,:][:,unit_rate_mask_union]
-# py = cau.load_from_single(long_fnaming(stimulus_names[0]), 'py')[unit_rate_mask_union,:][:,unit_rate_mask_union]
 # %%
 # drifting_gratings :   1884568 ms
 # static_gratings :     1503250 ms
