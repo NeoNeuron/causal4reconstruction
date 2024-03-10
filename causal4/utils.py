@@ -651,7 +651,11 @@ def reconstruction_analysis(data: pd.DataFrame,
             counts_total = np.zeros(nbins)
             for i, hist_key in enumerate(('hist_disconn', 'hist_conn')):
                 buffer = data_recon[data_recon['connection'].eq(i)][f'log-{key}']
-                counts, bins = np.histogram(buffer, bins=nbins, range=hist_range, density=True)
+                if len(buffer)>0:
+                    counts, bins = np.histogram(buffer, bins=nbins, range=hist_range, density=True)
+                else:
+                    counts, bins = np.histogram(buffer, bins=nbins, range=hist_range)
+                    counts = counts.astype(float)
                 counts *= np.abs(1-i-ratio)
                 counts_total += counts.copy()
                 data_fig[hist_key][key] = counts.copy()
