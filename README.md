@@ -1,6 +1,6 @@
-# Pairwise Causality Measure onto Pulse-output Signals
+# Causal connectivity measures for pulse-output network reconstruction
 
-Original code for paper: "Causal connectivity measures for pulse-output network reconstruction: analysis and applications"
+Code for paper "Causal connectivity measures for pulse-output network reconstruction: analysis and applications"
 
 ## Requirements
 
@@ -9,18 +9,21 @@ Original code for paper: "Causal connectivity measures for pulse-output network 
 - [`Eigen`](https://eigen.tuxfamily.org): library of vector/matrix operation
 
   ```bash
+  # Install on Ubuntu
   sudo apt-get update
   sudo apt-get install libeigen3-dev
   ```
 - [`boost`](http://www.boost.org/users/download/): containing library used for argparsers.
 
   ```bash
+  # Install on Ubuntu
   sudo apt-get install libboost-all-dev
   ```
 
 ### Python
 
-numpy, pandas, matplotlib, scipy, sci-kit learn, seaborn, brian2
+- network simulation: numpy, brian2
+- network reconstruction: numpy, pandas matplotlib, scipy, sci-kit learn, seaborn, 
 
 ## Installation
 
@@ -46,6 +49,10 @@ pip install brainpylib
 pip install -U "ray[default]"
 ```
 
+## causal4reconstruction pipelines
+
+![causal4reconstruction](./pipeline.png)
+
 ## Usage
 
 0. Run simulation of HH10 and HH100 models:
@@ -68,9 +75,10 @@ pip install -U "ray[default]"
     ./code4paper/HH100_recon_pnas.py
     ```
 4. Figure 5:
+
     To access allen data, you need to download the data using allensdk (or download directly from [Allen Institute](https://portal.brain-map.org/)).
     
-    Install allensdk:
+    Install `allensdk`:
     ```bash
     pip install allensdk
     ```
