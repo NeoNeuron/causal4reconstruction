@@ -27,46 +27,6 @@ class CausalityFileName(str):
         })
         return inst
 
-def get_fname_new(dtype:str, folder:str, order:tuple, bin:float, delay:float, 
-                  spk_fname:str, T:float=None, p:float=None, s:float=None, 
-                  f:float=None, u:float=None, **kwargs)->str:
-    """Generate filename of causal values.
-
-    Args:
-        dtype (str): type of dynamical systems.
-        folder (str): folder of data files.
-        order (tuple): conditional order in causal measures, (k, l)
-        bin (float): bin size for binarization of spike trains
-        delay (float): delay length, m.
-        spk_fname (str): filename of spike trains.
-        T (float): time duration of recorded data.
-        p (float, optional): wiring probability of network. Defaults to None.
-        s (float, optional): coupling strength. Defaults to None.
-        f (float, optional): FFWD Poisson strength. Defaults to None.
-        u (float, optional): FFWD Poisson frequency. Defaults to None.
-
-    Returns:
-        : str of filename
-    """
-
-    prefix = f"TGIC2.0-K={order[0]:d}_{order[1]:d}" \
-        + f"bin={bin:.2f}delay={delay:.2f}"
-    if T is not None:
-        prefix += f"T={T:.2e}"
-    prefix += "-"
-    if spk_fname is not None:
-        spk_name_new = spk_fname[:-4] if spk_fname.endswith('.dat') else spk_fname
-    else:
-        if dtype == 'Lorenz':
-            dtype='L'
-        elif dtype == 'Logistic':
-            dtype='Log'
-        if s < 1e-3 and s>0:
-            spk_name_new = f"{dtype:s}p={p:.2f}s={s:.5f}f={f:.3f}u={u:.3f}"
-        else:
-            spk_name_new = f"{dtype:s}p={p:.2f}s={s:.3f}f={f:.3f}u={u:.3f}"
-    return folder + prefix + f"{spk_name_new:s}.dat"
-
 def get_fname(dtype:str, midterm:str, order:tuple, bin:float, delay:float, 
               spk_fname:str, T:float=None, p:float=None, s:float=None, 
               f:float=None, u:float=None, **kwargs)->str:
@@ -134,33 +94,30 @@ class CausalityEstimator(object):
         self.spk_fname = spk_fname  # fname of spk_data file
         self.N=N
         self.T = T
-        self._order=order
+        self.order=order
         self.dt=dt
         self.delay=delay
-        self.index_map = dict(
-            TE = 0, 
-            GC = self.order[1]+8, 
-            MI = self.order[1]+9, 
-            CC = self.order[1]+10,
-            dp = 6,
-            Delta_p = self.order[1]+6,
-            px = 3,
-            py = 4,
-        )
         self.DT = kwargs['DT'] if 'DT' in kwargs else 1e3
         self.n_thread = kwargs['n_thread'] if 'n_thread' in kwargs else 10
+    
+    def save_ini(self, fname:str='causality.ini'):
+        with open(self.path+fname, "w") as file:
+            if self.T is None:
+                myDict={'N': self.N, 'DT': 0, 'dt': self.dt, 'auto_Tmax': 1,
+                        'order': self.order, 'delay': self.delay, 
+                        'spike_train_filename': self.spk_fname,
+                        'path': self.path, 'n_thread': self.n_thread}
+            else:
+                myDict={'N': self.N, 'Tmax': self.T, 'DT': self.DT, 'dt': self.dt, 'auto_Tmax': 0,
+                        'order': self.order, 'delay': self.delay, 
+                        'spike_train_filename': self.spk_fname,
+                        'path': self.path, 'n_thread': self.n_thread}
+            for key, val in myDict.items():
+                if isinstance(val, tuple):
+                    file.write(f"{key:s} = {val[0]} {val[1]}\n")
+                else:
+                    file.write(f"{key:s} = {val}\n")
 
-    @property
-    def order(self):
-        return self._order
-    
-    @order.setter
-    def order(self, order):
-        self._order = order
-        self.index_map['GC'] = order[1]+8
-        self.index_map['MI'] = order[1]+9
-        self.index_map['CC'] = order[1]+10
-    
     def get_optimal_delay(self, delay_range:list, dry_run:int=False) -> int:
         dfs = []
         print('>> start searching the optimal delay ...')
