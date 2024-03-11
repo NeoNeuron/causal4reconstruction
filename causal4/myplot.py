@@ -681,7 +681,7 @@ def reconstruction_illustration(fig_data:pd.DataFrame):
     fig, ax = plt.subplots(1,2, figsize=(13,6))
     ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=True,  ax=ax[0])
     ReconstructionFigure(fig_data, sc_hist=True, causal_hist_with_gt=False, ax=ax[1])
-    return fig_data, fig
+    return fig
 
 def ReconstructionAnalysis(
         pm_causal, hist_range:tuple=None, fit_p0 = None,
