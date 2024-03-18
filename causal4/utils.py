@@ -9,7 +9,7 @@ from pathlib import Path
 from multiprocessing import Process, Manager, Queue
 from multiprocessing.shared_memory import SharedMemory
 from typing import Tuple
-from .Causality import CausalityIO, run
+from .Causality import CausalityEstimator
 from joblib import Parallel, delayed
 from sklearn.cluster import KMeans
 
@@ -347,47 +347,33 @@ def compress_data(path:Path=Path('./HH/data/EE/N=3/'), T:float=1e7, dry_run:bool
     log_process.join()
     log_process.close()
 
-def scan_fu_process(dtype:str, f:float, fu:float, pm_causal:dict,
+def scan_fu_process(f:float, fu:float, pm_causal:dict,
     run_times:int, shuffle:bool, use_exists:bool=True):
     _pm_causal = pm_causal.copy()
-    _pm_causal['fname']=_pm_causal['fname'].split('f=')[0]+f'f={f:.3f}u={fu/f:.3f}'
-    N = _pm_causal['Ne']+_pm_causal['Ni']
-    cau = CausalityIO(dtype='HH', N=N, **_pm_causal)
-    fname_buff = get_fname(dtype, f'data/EE/N={N:d}/', spk_fname=_pm_causal['fname'], **_pm_causal)
+    _pm_causal['spk_fname']=_pm_causal['spk_fname'].split('f=')[0]+f'f={f:.3f}u={fu/f:.3f}'
+    N = _pm_causal['N']
+    _pm_causal['shuffle'] = shuffle
+    cau = CausalityEstimator(**_pm_causal)
     arr = np.zeros((run_times, N, N), dtype=float)
     for idx in range(run_times):
-        if Path(fname_buff).exists() and use_exists:
-            pass
-        else:
-            run(False, shuffle, **_pm_causal)
-        if shuffle:
-            arr[idx]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
-        else:
-            arr[idx]=cau.load_from_single(_pm_causal['fname'], 'TE')
+        cau._run_estimation(regen=not use_exists)
+        arr[idx] = cau.fetch_data()['TE'].to_numpy().reshape(N,N)
     return arr
 
-from .Causality import get_fname
-
-def scan_s_process(dtype:str, s:float, pm_causal:dict,
+def scan_s_process(s:float, pm_causal:dict,
     run_times:int, shuffle:bool, use_exists:bool=False):
     _pm_causal = pm_causal.copy()
-    fname = _pm_causal['fname']
+    fname = _pm_causal['spk_fname']
     begin = fname.find('s=')
     end = fname.find('f=')
-    _pm_causal['fname'] = fname.replace(fname[begin:end], f's={s:.3f}')
-    N = _pm_causal['Ne']+_pm_causal['Ni']
+    _pm_causal['spk_fname'] = fname.replace(fname[begin:end], f's={s:.3f}')
+    N = _pm_causal['N']
+    _pm_causal['shuffle'] = shuffle
     arr = np.zeros((run_times, N, N), dtype=float)
-    cau = CausalityIO(dtype=dtype, N=N, **_pm_causal)
-    fname_buff = get_fname(dtype, f'data/EE/N={N:d}/', spk_fname=_pm_causal['fname'], **_pm_causal)
+    cau = CausalityEstimator(**_pm_causal)
     for idx in range(run_times):
-        if Path(fname_buff).exists() and use_exists:
-            pass
-        else:
-            run(False, shuffle, **_pm_causal)
-        if shuffle:
-            arr[idx]=cau.load_from_single(_pm_causal['fname']+'_shuffle', 'TE')
-        else:
-            arr[idx]=cau.load_from_single(_pm_causal['fname'], 'TE')
+        cau._run_estimation(regen=not use_exists)
+        arr[idx] = cau.fetch_data()['TE'].to_numpy().reshape(N,N)
     return arr
 
 from scipy import signal
@@ -483,7 +469,7 @@ def spk_power_spectrum(pm:dict, fs: float=1000, idx:Union[int, list]=None,
 
 # match cell-type, connectivity, masking to causality data
 def match_features(data:pd.DataFrame, N:int, conn_file:str=None,
-        Ni:int=0, EI_types:np.ndarray=None):
+        Ni:int=0, EI_types:dict=None):
     """match causality data other network features, and transform causal values to log10-scale.
         TE and TDMI are modified according to the quantitative relations.
 
@@ -570,6 +556,7 @@ def reconstruction_analysis(data: pd.DataFrame,
                             nbins: int = 100,
                             fit_p0: list = None,
                             EI_mask: str = None,
+                            hist_type: str = 'log', # not implemented yet
                             weight_hist_type: str = 'linear') -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Perform reconstruction analysis on the given data.
@@ -582,6 +569,8 @@ def reconstruction_analysis(data: pd.DataFrame,
                                  Defaults to None.
         EI_mask (str, optional): The mask for filtering data based on cell E/I type.
                                  Defaults to None.
+        hist_type (str, optional): The type of histogram for causality values and dp values.
+                                   Defaults to 'log'. [TODO] not implemented yet.
         weight_hist_type (str, optional): The type of histogram for connection strength.
                                           Defaults to 'linear'.
 
@@ -689,23 +678,17 @@ def reconstruction_analysis(data: pd.DataFrame,
                 data_fig['ppv_kmeans'][key] = np.nan
         except:
             print("Warning: KMeans clustering failed!")
+            data_recon[f'recon-kmeans-{key}'] = np.nan
             data_fig['th_kmeans'][key] = np.nan
             data_fig['acc_kmeans'][key] = np.nan
             data_fig['ppv_kmeans'][key] = np.nan
 
         # Double Gaussian Anaylsis
-        try:
-            popt, th_gauss, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
+        popt, th_gauss, fpr, tpr = Double_Gaussian_Analysis(counts_total, bins, p0=fit_p0)
+        if popt is not None:
             data_fig['th_gauss'][key] = th_gauss
             data_fig['log_norm_fit_pval'][key] = popt
             data_fig['roc_blind'][key] = np.vstack((fpr, tpr))
-        except:
-            print("Warning: Double Gaussian Anaylsis failed!")
-            popt = None
-            data_fig['th_gauss'][key] = np.nan
-            data_fig['log_norm_fit_pval'][key] = np.nan
-            data_fig['roc_blind'][key] = np.nan
-        if popt is not None:
             # plot double Gaussian based ROC
             auc = -np.sum(np.diff(fpr)*(tpr[1:]+tpr[:-1])/2)
             data_fig['auc_gauss'][key] = auc
@@ -723,6 +706,11 @@ def reconstruction_analysis(data: pd.DataFrame,
                 data_fig['ppv_gauss'][key] = np.nan
                 data_fig['hist_error'][key] = np.nan
         else:
+            print("Warning: Double Gaussian Anaylsis failed!")
+            data_recon[f'recon-gauss-{key}'] = np.nan
+            data_fig['th_gauss'][key] = np.nan
+            data_fig['log_norm_fit_pval'][key] = np.nan
+            data_fig['roc_blind'][key] = np.nan
             data_fig['auc_gauss'][key] = np.nan
             data_fig['acc_gauss'][key] = np.nan
             data_fig['ppv_gauss'][key] = np.nan

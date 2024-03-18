@@ -99,6 +99,8 @@ class CausalityEstimator(object):
         self.delay=delay
         self.DT = kwargs['DT'] if 'DT' in kwargs else 1e3
         self.n_thread = kwargs['n_thread'] if 'n_thread' in kwargs else 10
+        self.shuffle=kwargs['shuffle']if 'shuffle' in kwargs else False
+        self.mask_file = kwargs['mask_file'] if 'mask_file' in kwargs else None
     
     def save_ini(self, fname:str='causality.ini'):
         with open(self.path+fname, "w") as file:
@@ -146,9 +148,14 @@ class CausalityEstimator(object):
             raise ValueError("delay is not specified.")
         else:
             delay = self.delay if delay is None else delay
-            return f"TGIC2.0-K={self.order[0]:d}_{self.order[1]:d}" \
-                    + f"bin={self.dt:.2f}delay={delay:.2f}" \
-                    + f"T={self.T:.2e}-{self.spk_fname:s}.dat"
+            if self.shuffle:
+                return f"TGIC2.0-K={self.order[0]:d}_{self.order[1]:d}" \
+                        + f"bin={self.dt:.2f}delay={delay:.2f}" \
+                        + f"T={self.T:.2e}-{self.spk_fname:s}_shuffle.dat"
+            else:
+                return f"TGIC2.0-K={self.order[0]:d}_{self.order[1]:d}" \
+                        + f"bin={self.dt:.2f}delay={delay:.2f}" \
+                        + f"T={self.T:.2e}-{self.spk_fname:s}.dat"
 
     def _check_exist(self, delay:float=None):
         causality_full_fname = self.path + '/' + self.causality_fname(delay)
@@ -181,13 +188,15 @@ class CausalityEstimator(object):
             spk_fname = self.spk_fname,
             n_thread = self.n_thread,
         )
+        if self.mask_file is not None:
+            pm['mask_file'] = self.mask_file
         if self.T is None:
             pm['auto_Tmax'] = 1 
-            output_fname = run(verbose=verbose, force_regen=regen, **pm)
+            output_fname = run(verbose=verbose, force_regen=regen, shuffle=self.shuffle, **pm)
             self.T = CausalityFileName(output_fname).T
             return output_fname
         else:
-            return run(verbose=verbose, force_regen=regen, **pm)
+            return run(verbose=verbose, force_regen=regen, shuffle=self.shuffle, **pm)
 
     def fetch_data(self, delay:float=None, new_run:bool=False):
         """ Fetches the causality data from a file.
