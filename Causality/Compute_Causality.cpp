@@ -284,7 +284,7 @@ void compute_causality(
 	for (int id = 0; id < num_pairs; id++)  // i-->j
 	{
 		double *s;
-		s = new double[l + 12];    
+		s = new double[l + 12];
 		for (int i = 0; i < l + 12; i++)
 			s[i] = 0;
 

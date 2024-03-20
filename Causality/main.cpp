@@ -4,6 +4,7 @@
 //-----------------------------------------------------------------------------
 
 #define _CRT_SECURE_NO_WARNINGS
+#include <chrono>
 #include "common_header.h"
 int num_threads_openmp = 1;
 #include "Compute_Causality.h"
@@ -126,9 +127,9 @@ int main(int argc, char **argv)
     // Run_model();
     int read_repeat, data_length, interval;
 	FILE *fp;
-	clock_t t0, t1, t2, t3;
 
-	t0 = clock();
+	auto ct0 = chrono::steady_clock::now();
+	clock_t t0 = clock();
 
 	strcpy(str, path), strcat(str, input_filename), strcat(str, "_spike_train.dat");
 	fp = fopen(str, "rb");
@@ -217,11 +218,13 @@ int main(int argc, char **argv)
 				continue;
 			compute_p(X, y, x, N, z, tau, order, m, i);
 		}
+		#pragma omp parallel for num_threads(num_threads_openmp)
 		for (int i = 0; i < N; i++)
 			X[i].assign(data_length, 0);
 	}
 	std::fclose(fp);
 
+	// Count the number of total events
 	L = 0;
 	if (mask_toggle) {
 		for (int i = 0; i < 2 * m[0] * m[1]; i++)
@@ -235,6 +238,8 @@ int main(int argc, char **argv)
 		for (auto j = (*i).begin(); j != (*i).end(); j++)
 			*j /= L;
 
+	auto ct1 = chrono::steady_clock::now();
+	clock_t t1 = clock();
 	// compute TE(x_n+1+tau,x_n+tau,y_n), GC(x_n+1+tau,x_n+tau,y_n) 
 	// sum DMI(x_n+1+tau,y_n), CC(x_n+1+tau,y_n)
 
@@ -258,11 +263,18 @@ int main(int argc, char **argv)
 
 	std::fclose(FP);
 
-	t1 = clock();
+	auto ct2 = chrono::steady_clock::now();
+	clock_t t2 = clock();
 	if (verbose) {
-		printf("Tmax=%0.2e L=%0.2e\n", Tmax, L);
-		printf("Total time=%0.3fs\n\n", double(t1 - t0) / CLOCKS_PER_SEC);
-	}
+		std::chrono::duration<double> elapsed_seconds;
+		printf("Tmax=%0.2e L=%0.2e\n\n", Tmax, L);
+        elapsed_seconds = ct1 - ct0;
+		printf(">> preprocessing time: %0.3f s (CPU time: %0.3f s)\n", elapsed_seconds, double(t1 - t0) / CLOCKS_PER_SEC);
+        elapsed_seconds = ct2 - ct1;
+		printf(">> estimation time:    %0.3f s (CPU time: %0.3f s)\n", elapsed_seconds, double(t2 - t1) / CLOCKS_PER_SEC);
+        elapsed_seconds = ct2 - ct0;
+		printf(">> total time:         %0.3f s (CPU time: %0.3f s)\n", elapsed_seconds, double(t2 - t0) / CLOCKS_PER_SEC);
+    }
 
     return 0;
 }
