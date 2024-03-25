@@ -14,8 +14,9 @@ from joblib import Parallel, delayed
 from sklearn.cluster import KMeans
 
 
-def spk2bin(spike_train:np.ndarray, dt:float)->np.ndarray:
-    spk_bin = np.zeros(np.ceil(spike_train.max()/dt).astype(int)+1)
+def spk2bin(spike_train:np.ndarray, dt:float, tmax:float=None)->np.ndarray:
+    tmax = spike_train.max() if tmax is None else tmax
+    spk_bin = np.zeros(np.ceil(tmax/dt).astype(int)+1)
     spk_bin[(spike_train/dt).astype(int)] = 1
     return spk_bin
 
