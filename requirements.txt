@@ -4,6 +4,7 @@ scipy
 matplotlib
 seaborn
 pandas
+networkx
 tqdm
 scikit-learn
 pip

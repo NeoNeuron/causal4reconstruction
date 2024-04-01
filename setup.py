@@ -1,7 +1,8 @@
 import setuptools
-import sys
-import numpy
-import sysconfig
+
+# Avoids duplication of requirements
+with open("requirements.txt") as file:
+    requirements = file.read().splitlines()
 
 setuptools.setup(
     name="causal4",
@@ -13,6 +14,6 @@ setuptools.setup(
 
     description="Software package for studies of 4 causality measures.",
 
-    install_requires=['numpy', 'matplotlib', 'pandas', 'tqdm', 'scipy', 'networkx'],
+    install_requires=requirements,
     packages=setuptools.find_packages(),
 )
