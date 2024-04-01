@@ -181,8 +181,8 @@ def ReconstructionFigure(
             if not hasattr(popt, '__len__'):
                 popt = None
             if popt is not None:
-                ax_hist.plot(edges, Gaussian(edges, popt[0], popt[2], popt[4], ), '-.', lw=1, color=line_rc[key]['color'], )
-                ax_hist.plot(edges, Gaussian(edges, popt[1], popt[3], popt[5], ), '-.', lw=1, color=line_rc[key]['color'], )
+                ax_hist.plot(edges, Gaussian(edges, popt[1], popt[3])*(1-popt[0]), '-.', lw=1, color=line_rc[key]['color'])
+                ax_hist.plot(edges, Gaussian(edges, popt[2], popt[4]) * (popt[0]), '-.', lw=1, color=line_rc[key]['color'])
 
     # print acc, ppv
     if isinstance(data, dict):  # data as dict of dict

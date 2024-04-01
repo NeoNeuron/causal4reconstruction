@@ -115,7 +115,7 @@ for i, axi in enumerate(ax.flatten()[:len(stimulus_names_plot)]):
     data = data[(data['pre_id'].isin(chosen_unit_set)) & (data['post_id'].isin(chosen_unit_set))].copy()
     data_matched = match_features(data, N=n_unit)
     vrange=(-8,-2)
-    data_recon, data_fig = reconstruction_analysis(data_matched, nbins=100, hist_range=vrange, fit_p0=[0.5,0.5,-5,-4,1,1])
+    data_recon, data_fig = reconstruction_analysis(data_matched, nbins=100, hist_range=vrange, fit_p0=[0.5,-5.8,-4.2,1,1])
     data_fig = data_fig.dropna(axis=1, how='all')
     allen_data[stimulus_names_plot[i]] = data_fig.copy()
     data_recon['stimulus'] = stimulus_names_plot[i]
@@ -187,8 +187,8 @@ for key in ('CC', 'MI', 'GC', 'TE'):
         axi.plot(bins[:-1], gaussian_filter1d(counts*pop_ratio, 1), lw=6, color='#00C2A0', label=line_rc[key]['label'], zorder=1)
         inconsist_hist[stim][key] = counts*pop_ratio,
         popt = allen_data[stim]['log_norm_fit_pval'][key]
-        axi.plot(bins[:-1], Gaussian(bins[:-1], popt[0], popt[2], popt[4], ), lw=4, alpha=1.0, color=line_rc[key]['color'],zorder=0)
-        axi.plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3], popt[5], ), lw=4, alpha=1.0, color=c_inv[line_rc[key]['color']],zorder=0)
+        axi.plot(bins[:-1], Gaussian(bins[:-1], popt[1], popt[3])*(1-popt[0]), lw=4, alpha=1.0, color=line_rc[key]['color'],zorder=0)
+        axi.plot(bins[:-1], Gaussian(bins[:-1], popt[2], popt[4])*popt[0], lw=4, alpha=1.0, color=c_inv[line_rc[key]['color']],zorder=0)
         # calculate threshold
         axi.axvline(allen_data[stim]['th_gauss'][key], color='k', ls='-')
 

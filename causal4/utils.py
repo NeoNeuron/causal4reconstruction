@@ -233,58 +233,54 @@ def kmeans_1d(X:np.ndarray, init='kmeans++', return_label:bool=False):
     else:
         return threshold
 
-def Gaussian(x, a, mu, sigma2):
-    """Standand Gaussian template function.
+def Gaussian(x, mu, sigma2):
+    """Standand Gaussian template function, normalized.
 
     Args:
         x (array-like): 1-d input data.
-        a (float): positive contrained Gaussian amplitude
         mu (float): mean
-        sigma2 (float): variance
+        sigma2 (float): variance, square of standard deviation
 
     Returns:
         array-like: function value
     """
-    return np.abs(a)*np.exp(-(x-mu)**2/sigma2)
+    return np.exp(-(x-mu)**2/(2*sigma2))/np.sqrt(2*np.pi*sigma2)
 
-def Double_Gaussian(x, a1, a2, mu1, mu2, sigma1, sigma2):
-    """Double Gaussian like template function.
+def Double_Gaussian(x, p, mu1, mu2, sigma1, sigma2):
+    """Double Gaussian like template function, normalized.
 
     Args:
         x (array-like): 1d input data
-        a1 (float): amplitude of first Gaussian
-        a2 (float): amplitude of second Gaussian
-        mu1 (float): mean of first Gaussian
-        mu2 (float): mean of second Gaussian
-        sigma1 (float): variance of first Gaussian
-        sigma2 (float): variance of second Gaussian
+        p (float): proportion of right-side Gaussian
+        mu1 (float): mean of left Gaussian
+        mu2 (float): mean of right Gaussian
+        sigma1 (float): variance of left Gaussian
+        sigma2 (float): variance of right Gaussian
 
     Returns:
         array-like: function value
     """
-    return Gaussian(x, a1, mu1, sigma1) + Gaussian(x, a2, mu2, sigma2)
+    return (1-p)*Gaussian(x, mu1, sigma1) + p*Gaussian(x, mu2, sigma2)
 
 def Double_Gaussian_Analysis(counts, bins, p0=None):
     if p0 is None:
-        p0 = [0.5, 0.5, -7, -5, 1, 1]
+        p0 = [0.5, -7, -5, 1, 1]
     try:
         popt, _ = curve_fit(Double_Gaussian, bins[:-1], counts, p0=p0)
         # calculate threshold, find crossing point of two Gaussian
-        if popt[2] < popt[3]:
-            x_grid = np.linspace(popt[2]-0.02, popt[3]+0.02, 10000)
-        else:
-            x_grid = np.linspace(popt[3]-0.02, popt[2]+0.02, 10000)
-        th_ = x_grid[np.argmin(np.abs(Gaussian(x_grid, popt[0], popt[2], popt[4], )-Gaussian(x_grid, popt[1], popt[3], popt[5], )))]
+        if popt[1] >= popt[2]:
+            popt[1], popt[2] = popt[2], popt[1]
+            popt[3], popt[4] = popt[4], popt[3]
+        x_grid = np.linspace(popt[1]-0.02, popt[2]+0.02, 10000)
+        optimal_threshold = x_grid[np.argmin((1-popt[0])*np.abs(Gaussian(x_grid, popt[1], popt[3])-popt[0]*Gaussian(x_grid, popt[2], popt[4])))]
 
-        true_cumsum = np.cumsum(Gaussian(bins[:-1], popt[0], popt[2], popt[4], ))
-        true_cumsum /= true_cumsum[-1]
-        false_cumsum = np.cumsum(Gaussian(bins[:-1], popt[1], popt[3], popt[5], ))
+        false_cumsum = np.cumsum(Gaussian(bins[:-1], popt[1], popt[3]))
         false_cumsum /= false_cumsum[-1]
-        if popt[2] < popt[3]:
-            true_cumsum, false_cumsum = false_cumsum, true_cumsum
+        true_cumsum = np.cumsum(Gaussian(bins[:-1], popt[2], popt[4]))
+        true_cumsum /= true_cumsum[-1]
         fpr = 1-false_cumsum
         tpr = 1-true_cumsum
-        return popt, th_, fpr, tpr
+        return popt, optimal_threshold, fpr, tpr
     except:
         return None, None, None, None
 
@@ -663,11 +659,11 @@ def reconstruction_analysis(data: pd.DataFrame,
             if 'connection' in data_recon:
                 disconn_peak_id = data_fig['hist_disconn'][key].argmax()
                 conn_peak_id = data_fig['hist_conn'][key].argmax()
-                fit_p0 = [0.5, 0.5, bins[disconn_peak_id], bins[conn_peak_id], 1, 1]
+                fit_p0 = [0.5, bins[disconn_peak_id], bins[conn_peak_id], 1, 1]
             else:
-                fit_p0 = [0.5, 0.5, bins[data_fig['hist'][key].argmax()], bins[data_fig['hist'][key].argmax()], 1, 1]
+                fit_p0 = [0.5, bins[data_fig['hist'][key].argmax()], bins[data_fig['hist'][key].argmax()], 1, 1]
         try:
-            th_kmeans = kmeans_1d(data_recon[f'log-{key}'].to_numpy(), np.array([[fit_p0[2]],[fit_p0[3]]]))
+            th_kmeans = kmeans_1d(data_recon[f'log-{key}'].to_numpy(), np.array([[fit_p0[1]],[fit_p0[2]]]))
             data_fig['th_kmeans'][key] = th_kmeans
             data_recon[f'recon-kmeans-{key}'] = (data_recon[f'log-{key}'] >= th_kmeans).astype(int)
             if 'connection' in data_recon:

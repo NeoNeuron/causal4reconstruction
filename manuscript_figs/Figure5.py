@@ -27,8 +27,8 @@ with open(data_path/'HH100_conn_types_data_fig.pkl', 'rb') as f:
     nte2 = TE['hist_disconn']
     pval = TE['log_norm_fit_pval']
     fte = Double_Gaussian(edges, *pval)
-    fte1 = Gaussian(edges, pval[1], pval[3], pval[5])
-    fte2 = Gaussian(edges, pval[0], pval[2], pval[4])
+    fte1 = Gaussian(edges, pval[2], pval[4]) * pval[0]
+    fte2 = Gaussian(edges, pval[1], pval[3]) * (1-pval[0])
     opt_th=TE['th_gauss']
 	# connectivity data
     conn = data.loc['conn']
