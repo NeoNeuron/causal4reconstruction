@@ -1,0 +1,72 @@
+HH100:
+    N: 100
+    T: 1.0e+7
+    DT: 2.0e+4
+    dt: 0.5
+    order: !!python/tuple
+    - 1
+    - 1
+    delay: 3
+    spk_fname: HHp=0.25s=0.020f=0.100u=0.100
+    conn_file: connect_matrix-p=0.250.dat
+    path: ../HH/data/EE/N=100_main/
+HH100-G:
+    N: 100
+    T: 1.0e+7
+    DT: 2.0e+4
+    dt: 0.5
+    order: !!python/tuple
+    - 1
+    - 1
+    delay: 3
+    spk_fname: HHG-p=0.25s=0.020f=0.100u=0.100
+    conn_file: connect_matrix-p=0.250-G.dat
+    path: ../HH/data/EE/N=100_main/
+HH100-U:
+    N: 100
+    T: 1.0e+7
+    DT: 2.0e+4
+    dt: 0.5
+    order: !!python/tuple
+    - 1
+    - 1
+    delay: 3
+    spk_fname: HHU-p=0.25s=0.020f=0.100u=0.100
+    conn_file: connect_matrix-p=0.250-U.dat
+    path: ../HH/data/EE/N=100_main/
+HH100-E:
+    N: 100
+    T: 1.0e+7
+    DT: 2.0e+4
+    dt: 0.5
+    order: !!python/tuple
+    - 1
+    - 1
+    delay: 3
+    spk_fname: HHE-p=0.25s=0.020f=0.100u=0.100
+    conn_file: connect_matrix-p=0.250-E.dat
+    path: ../HH/data/EE/N=100_main/
+HH100-LN:
+    N: 100
+    T: 1.0e+7
+    DT: 2.0e+4
+    dt: 0.5
+    order: !!python/tuple
+    - 1
+    - 1
+    delay: 3
+    spk_fname: HHLN-p=0.25s=0.020f=0.100u=0.100
+    conn_file: connect_matrix-p=0.250-LN.dat
+    path: ../HH/data/EE/N=100_main/
+HH100-LN-Song2005:
+    N: 100
+    T: 1.0e+7
+    DT: 2.0e+4
+    dt: 0.5
+    order: !!python/tuple
+    - 1
+    - 1
+    delay: 3
+    spk_fname: HHLN-p=0.25s=0.020f=0.100u=0.100Song2005
+    conn_file: connect_matrix-p=0.250-LNSong2005.dat
+    path: ../HH/data/EE/N=100_main/
