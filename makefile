@@ -4,7 +4,7 @@ CXXFLAGS = -fopenmp -g -O2
 LDLIBS = -lboost_program_options -fopenmp
 # define variable path
 DIR_INC = include
-DIR_SRC = HH Causality HHcon Lorenz Lcon Logistic FN ML 
+DIR_SRC = HH Causality FN ML 
 DIR_BIN = bin
 
 vpath %.cpp $(DIR_SRC)
@@ -19,7 +19,7 @@ OBJS_Causality = $(SRCS_Causality:.cpp=.o)
 HEADERS_HHcon := $(notdir $(wildcard HHcon/*.h))
 HEADERS_Lorenz := $(notdir $(wildcard Lorenz/*.h))
 HEADERS_Lcon := $(notdir $(wildcard Lcon/*.h))
-BIN := $(DIR_BIN)/calCausality $(DIR_BIN)/simHH $(DIR_BIN)/simHHcon $(DIR_BIN)/simLorenz $(DIR_BIN)/simLcon $(DIR_BIN)/simFN $(DIR_BIN)/simML $(DIR_BIN)/simLogistic
+BIN := $(DIR_BIN)/calCausality $(DIR_BIN)/simHH $(DIR_BIN)/simFN $(DIR_BIN)/simML
 
 .PHONY : all
 all : $(BIN)
@@ -30,23 +30,11 @@ $(DIR_BIN)/calCausality : $(OBJS_Causality) $(DIR_BIN) $(HEADERS_COMMON) $(HEADE
 $(DIR_BIN)/simHH : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_HH) 
 	$(CXX) $(CPPFLAGS) -O2 HH/main.cpp -o $(DIR_BIN)/simHH $(LDLIBS)
 
-$(DIR_BIN)/simHHcon : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_HHcon) 
-	$(CXX) $(CPPFLAGS) HHcon/main.cpp -o $(DIR_BIN)/simHHcon $(LDLIBS)
-
-$(DIR_BIN)/simLorenz : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Lorenz) 
-	$(CXX) $(CPPFLAGS) -O2 Lorenz/main.cpp -o $(DIR_BIN)/simLorenz $(LDLIBS)
-
-$(DIR_BIN)/simLcon : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Lcon) 
-	$(CXX) $(CPPFLAGS) Lcon/main.cpp -o $(DIR_BIN)/simLcon $(LDLIBS)
-
 $(DIR_BIN)/simFN : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_FN) 
 	$(CXX) $(CPPFLAGS) FN/main.cpp -o $(DIR_BIN)/simFN $(LDLIBS)
 
 $(DIR_BIN)/simML : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_ML) 
 	$(CXX) $(CPPFLAGS) ML/main.cpp -o $(DIR_BIN)/simML $(LDLIBS)
-
-$(DIR_BIN)/simLogistic : $(DIR_BIN) $(HEADERS_COMMON) $(HEADERS_Logistic) 
-	$(CXX) $(CPPFLAGS) Logistic/main.cpp -o $(DIR_BIN)/simLogistic $(LDLIBS)
 
 .PHONY : debug
 debug : CPPFLAGS += -DDEBUG

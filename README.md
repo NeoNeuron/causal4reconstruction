@@ -118,7 +118,7 @@ data_matched = match_features(data, N=100, conn_file='./test/connect_matrix.dat'
 # reconstruction analysis
 data_recon, fig_data = reconstruction_analysis(data_matched, nbins=100)
 # plot reconstruction distributions
-fig = mplt.reconstruction_illustration(fig_data)
+fig = reconstruction_illustration(fig_data)
 
 ```
 
@@ -127,22 +127,22 @@ fig = mplt.reconstruction_illustration(fig_data)
 
 0. Run simulation of HH10 and HH100 models:
     ```bash
-    ./code4paper/run_HH10_scan_S.py
-    ./code4paper/run_HH100.py
+    python code4data/run_HH10_scan_S.py
+    python code4data/run_HH100.py
     ```
     The results will be saved in `./HH/data/EE/N=10/` and `./HH/data/EE/N=100` respectively.
 
 1. Figure 2:
     ```bash
-    ./code4paper/pm_scan_kl_HH10.py
+    python code4data/pm_scan_kl_HH10.py
     ```
 2. Figure 3:
     ```bash
-    ./code4paper/pm_scan_kl_HH10.py
+    python code4data/pm_scan_kl_HH10.py
     ```
 3. Figure 4:
     ```bash
-    ./code4paper/HH100_recon_pnas.py
+    python code4data/HH100_recon_pnas.py
     ```
 4. Figure 5:
 
@@ -156,8 +156,8 @@ fig = mplt.reconstruction_illustration(fig_data)
     Then run the following scripts:
 
     ```bash
-    ./code4paper/download_allen_observatory_data.py # download data
-    ./code4paper/extract_allen_data_pkl.py          # data preprocessing
-    ./code4paper/allen_data_causality_estimation.py
-    ./code4paper/test_allen.py
+    python ./code4data/download_allen_observatory_data.py # download data
+    python ./code4data/extract_allen_data_pkl.py          # data preprocessing
+    python ./code4data/allen_data_causality_estimation.py
+    python ./code4data/test_allen.py
     ```
